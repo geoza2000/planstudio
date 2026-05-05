@@ -2,8 +2,9 @@ import {
   DND_DEVICE_TEMPLATE,
   templateAllowsPlanMounting,
   templateAllowsWallMounting,
-  templatePalettePrimaryLine,
-  templatePaletteSecondaryLine,
+  templateListBomSubtitle,
+  templateListDisplayTitle,
+  templateListMetaLine,
 } from '../lib/deviceCatalog'
 import { deviceGlyph } from '../lib/deviceStyle'
 import { useProjectStore } from '../store/projectStore'
@@ -35,7 +36,7 @@ export function DeviceTemplatePalette({ surface }: { surface: Surface }) {
       ) : (
         <ul className="device-template-palette-list">
           {rows.map((t) => {
-            const subtitle = templatePaletteSecondaryLine(t)
+            const bomLine = templateListBomSubtitle(t)
             return (
             <li key={t.id} className="device-template-palette-item">
               <span
@@ -46,18 +47,14 @@ export function DeviceTemplatePalette({ surface }: { surface: Surface }) {
                 {deviceGlyph(t.type, t.connectorSubtype)}
               </span>
               <span className="device-template-palette-meta">
-                <span className="device-template-palette-name">{templatePalettePrimaryLine(t)}</span>
-                {subtitle ? (
+                <span className="device-template-palette-name">{templateListDisplayTitle(t)}</span>
+                {bomLine ? (
                   <span className="muted small" style={{ display: 'block' }}>
-                    {subtitle}
+                    {bomLine}
                   </span>
                 ) : null}
                 <span className="muted small">
-                  {t.type}
-                  {t.type === 'connector' && t.connectorSubtype
-                    ? ` · ${t.connectorSubtype}`
-                    : ''}{' '}
-                  · {t.mounting} · €{t.unitPrice}
+                  {templateListMetaLine(t)}
                 </span>
               </span>
               <div

@@ -143,7 +143,6 @@ export const PanelEditor = forwardRef<KonvaStage, PanelEditorProps>(
                       : slot.moduleType === 'surge'
                         ? '#9b59b6'
                         : '#34495e'
-              const cat = slot.catalogCode?.trim()
               return (
                 <Group key={slot.id}>
                   <Rect
@@ -166,18 +165,6 @@ export const PanelEditor = forwardRef<KonvaStage, PanelEditorProps>(
                     fontSize={11}
                     fontFamily="system-ui, sans-serif"
                   />
-                  {cat ? (
-                    <Text
-                      x={x + 4}
-                      y={y + rh - 28}
-                      width={rw - 8}
-                      text={cat}
-                      align="center"
-                      fill="#cfd8e3"
-                      fontSize={9}
-                      fontFamily="system-ui, sans-serif"
-                    />
-                  ) : null}
                   {slot.label ? (
                     <Text
                       x={x}

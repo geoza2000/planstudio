@@ -34,6 +34,11 @@ const PAD = 40
 const LABEL_W = 420
 /** Right margin for patch “bus” + device labels (plan/wall devices are not drawn on the elevation). */
 const BUS_LANE_W = 176
+/** When the rack is taller than this many U, the preview uses two columns (top band U42…U30 on a 42U rack, then the rest). */
+const RACK_PREVIEW_SPLIT_ABOVE_RU = 42
+/** Height of the left column in rack units (13 U = U42 down through U30 on a 42U cabinet). */
+const RACK_PREVIEW_TOP_COLUMN_RU = 13
+const RACK_COL_GUTTER_PX = 36
 
 /** Truncated title + meta overlay band inside the nominal RU rect (ports start below). */
 const GEAR_TITLE_OVERLAY_H = 40
@@ -293,6 +298,34 @@ function firstPatchAnchorGear(gear: RackGear[]): RackGear | null {
   return gear[0] ?? null
 }
 
+function gearRuSpan(g: RackGear): { low: number; high: number } {
+  const h = Math.max(1, Math.floor(Number(g.heightRU)) || 1)
+  const s = Math.max(1, Math.floor(Number(g.startRU)) || 1)
+  return { low: s, high: s + h - 1 }
+}
+
+function ruBandOverlap(lowA: number, highA: number, lowB: number, highB: number): number {
+  const lo = Math.max(lowA, lowB)
+  const hi = Math.min(highA, highB)
+  return Math.max(0, hi - lo + 1)
+}
+
+/** Which side of a split preview should own interaction for this gear (by RU overlap). */
+function primarySplitColumnIndex(
+  g: RackGear,
+  leftLow: number,
+  leftHigh: number,
+  rightLow: number,
+  rightHigh: number,
+): 0 | 1 {
+  const span = gearRuSpan(g)
+  const oL = ruBandOverlap(span.low, span.high, leftLow, leftHigh)
+  const oR = ruBandOverlap(span.low, span.high, rightLow, rightHigh)
+  if (oL === 0) return 1
+  if (oR === 0) return 0
+  return oL >= oR ? 0 : 1
+}
+
 type RackEditorProps = {
   className?: string
 }
@@ -307,19 +340,295 @@ type WireDragState = {
   by: number
 }
 
+type RackGearMountProps = {
+  g: RackGear
+  bottomY: number
+  gearX: number
+  rackTotalRU: number
+  selectedRackGearId: string | null
+  wireDrag: WireDragState | null
+  setSelectedRackGearId: (id: string) => void
+  updateRackGear: (id: string, patch: Partial<RackGear>) => void
+  beginPortWireDrag: (
+    e: Konva.KonvaEventObject<MouseEvent | TouchEvent>,
+    from: RackPortEndpoint,
+  ) => void
+  handlePortMouseUp: (
+    ev: Konva.KonvaEventObject<MouseEvent | TouchEvent>,
+    ep: RackPortEndpoint,
+  ) => void
+}
+
+function RackGearMount({
+  g,
+  bottomY,
+  gearX,
+  rackTotalRU,
+  selectedRackGearId,
+  wireDrag,
+  setSelectedRackGearId,
+  updateRackGear,
+  beginPortWireDrag,
+  handlePortMouseUp,
+}: RackGearMountProps) {
+  const yTop = gearYTopFromStartRu(bottomY, RU_PX, g.startRU, g.heightRU)
+  const rj = normalizeRackPortCount(g.rj45PortCount)
+  const sfp = normalizeRackPortCount(g.sfpPortCount)
+  const layout = computeGearPortLayout(g, LABEL_W)
+  const displayH = layout.blockH
+  const hitR = layout.hitRadius
+  const rjVisR = layout.rj45VisRadius
+  const sfpHalf = layout.sfpVisHalf
+  const selected = g.id === selectedRackGearId
+  const faceCols = columnXBounds(LABEL_W)
+  return (
+    <Group
+      x={gearX}
+      y={yTop}
+      draggable={!wireDrag}
+      dragBoundFunc={(pos) => {
+        const nextStart = startRuFromYTop(
+          bottomY,
+          RU_PX,
+          pos.y,
+          g.heightRU,
+          rackTotalRU,
+        )
+        const snappedY = gearYTopFromStartRu(bottomY, RU_PX, nextStart, g.heightRU)
+        return { x: gearX, y: snappedY }
+      }}
+      onTap={() => setSelectedRackGearId(g.id)}
+      onClick={() => setSelectedRackGearId(g.id)}
+      onDblClick={() => setSelectedRackGearId(g.id)}
+      onDblTap={() => setSelectedRackGearId(g.id)}
+      onDragEnd={(e) => {
+        const node = e.target
+        const startRU = startRuFromYTop(
+          bottomY,
+          RU_PX,
+          node.y(),
+          g.heightRU,
+          rackTotalRU,
+        )
+        updateRackGear(g.id, { startRU })
+        node.position({
+          x: gearX,
+          y: gearYTopFromStartRu(bottomY, RU_PX, startRU, g.heightRU),
+        })
+      }}
+    >
+      <Rect
+        width={LABEL_W}
+        height={displayH}
+        fill="#152535"
+        stroke={selected ? '#7ec8ff' : '#3d5a78'}
+        strokeWidth={selected ? 2.5 : 1.25}
+        cornerRadius={8}
+        shadowColor="#000"
+        shadowBlur={selected ? 10 : 4}
+        shadowOpacity={0.35}
+      />
+      <Text
+        x={14}
+        y={6}
+        width={LABEL_W - 28}
+        text={g.productName}
+        fill="#e8eef4"
+        fontSize={displayH <= RU_PX ? 13 : 15}
+        fontFamily="system-ui, sans-serif"
+        ellipsis
+      />
+      <Text
+        x={14}
+        y={displayH <= RU_PX ? 22 : 28}
+        width={LABEL_W - 28}
+        text={`${g.heightRU}U · bottom RU ${g.startRU}`}
+        fill="#98a7b8"
+        fontSize={displayH <= RU_PX ? 10 : 12}
+        fontFamily="system-ui, sans-serif"
+        ellipsis
+      />
+      <Text
+        x={faceCols.rj.xL}
+        y={GEAR_TITLE_OVERLAY_H - 16}
+        width={faceCols.rj.xR - faceCols.rj.xL}
+        align="left"
+        text="RJ45"
+        fill="#7ecf9a"
+        fontSize={11}
+        fontFamily="system-ui, sans-serif"
+      />
+      <Text
+        x={faceCols.sfp.xL}
+        y={GEAR_TITLE_OVERLAY_H - 16}
+        width={faceCols.sfp.xR - faceCols.sfp.xL}
+        align="center"
+        text="SFP"
+        fill="#f0a030"
+        fontSize={11}
+        fontFamily="system-ui, sans-serif"
+      />
+      {Array.from({ length: rj }, (_, i) => {
+        const { x, y } = layout.rj45[i]!
+        const ep: RackPortEndpoint = {
+          gearId: g.id,
+          portKind: 'rj45',
+          portIndex: i,
+        }
+        const jackW = Math.max(22, rjVisR * 2.65)
+        const jackH = Math.max(16, rjVisR * 1.75)
+        const pinCount = 8
+        return (
+          <Group key={`rj-${g.id}-${i}`}>
+            <Group listening={false} x={x} y={y}>
+              <Rect
+                x={-jackW / 2}
+                y={-jackH / 2}
+                width={jackW}
+                height={jackH}
+                fill={RJ45_HOUSING_FILL}
+                stroke={RJ45_HOUSING_STROKE}
+                strokeWidth={1.25}
+                cornerRadius={3.5}
+              />
+              <Rect
+                x={-jackW * 0.44}
+                y={-jackH * 0.4}
+                width={jackW * 0.88}
+                height={jackH * 0.72}
+                fill={RJ45_CAVITY_FILL}
+                stroke={RJ45_SLOT_STROKE}
+                strokeWidth={0.75}
+                cornerRadius={2}
+              />
+              <Rect
+                x={-jackW * 0.34}
+                y={-jackH * 0.32}
+                width={jackW * 0.68}
+                height={jackH * 0.38}
+                fill="#0a0e12"
+                stroke={RJ45_SLOT_STROKE}
+                strokeWidth={0.5}
+                cornerRadius={1.5}
+              />
+              <Rect
+                x={-jackW * 0.12}
+                y={jackH * 0.22}
+                width={jackW * 0.24}
+                height={jackH * 0.22}
+                fill={RJ45_LATCH_FILL}
+                stroke="#3d4d62"
+                strokeWidth={0.5}
+                cornerRadius={1}
+              />
+              {Array.from({ length: pinCount }, (_, pi) => {
+                const span = jackW * 0.58
+                const pinW = Math.max(1.1, span / (pinCount * 1.85))
+                const gap = (span - pinW * pinCount) / (pinCount + 1)
+                const x0 = -span / 2 + gap
+                return (
+                  <Rect
+                    key={`rj-pin-${g.id}-${i}-${pi}`}
+                    x={x0 + pi * (pinW + gap)}
+                    y={-jackH * 0.08}
+                    width={pinW}
+                    height={jackH * 0.14}
+                    fill={RJ45_CONTACT_GOLD}
+                    stroke="#8a7018"
+                    strokeWidth={0.35}
+                    cornerRadius={0.5}
+                  />
+                )
+              })}
+            </Group>
+            <Rect
+              x={x - jackW / 2}
+              y={y - jackH / 2}
+              width={jackW}
+              height={jackH}
+              fill="rgba(0,0,0,0.001)"
+              listening
+              perfectDrawEnabled={false}
+              onMouseDown={(ev) => {
+                setSelectedRackGearId(g.id)
+                beginPortWireDrag(ev, ep)
+              }}
+              onMouseUp={(ev) => handlePortMouseUp(ev, ep)}
+            />
+            <Text
+              listening={false}
+              x={x - 10}
+              y={y + jackH / 2 + 4}
+              width={20}
+              align="center"
+              text={String(i + 1)}
+              fill="#6a8a78"
+              fontSize={10}
+              fontFamily="system-ui, sans-serif"
+            />
+          </Group>
+        )
+      })}
+      {Array.from({ length: sfp }, (_, i) => {
+        const { x, y } = layout.sfp[i]!
+        const ep: RackPortEndpoint = {
+          gearId: g.id,
+          portKind: 'sfp',
+          portIndex: i,
+        }
+        return (
+          <Group key={`sfp-${g.id}-${i}`}>
+            <Circle
+              x={x}
+              y={y}
+              radius={hitR}
+              fill="rgba(0,0,0,0.02)"
+              perfectDrawEnabled={false}
+              onMouseDown={(ev) => {
+                setSelectedRackGearId(g.id)
+                beginPortWireDrag(ev, ep)
+              }}
+              onMouseUp={(ev) => handlePortMouseUp(ev, ep)}
+            />
+            <Rect
+              listening={false}
+              x={x - sfpHalf}
+              y={y - sfpHalf}
+              width={sfpHalf * 2}
+              height={sfpHalf * 2}
+              fill={SFP_PORT_FILL}
+              stroke={SFP_PORT_STROKE}
+              strokeWidth={1.5}
+              cornerRadius={3}
+            />
+            <Text
+              listening={false}
+              x={x - 10}
+              y={y + sfpHalf + 4}
+              width={20}
+              align="center"
+              text={String(i + 1)}
+              fill="#b8925a"
+              fontSize={10}
+              fontFamily="system-ui, sans-serif"
+            />
+          </Group>
+        )
+      })}
+    </Group>
+  )
+}
+
 export const RackEditor = forwardRef<KonvaStage, RackEditorProps>(
   function RackEditor({ className }, ref) {
     const rack = useProjectStore((s) => s.project.rack)
     const floors = useProjectStore((s) => s.project.floors)
-    const rackGearPalette = useProjectStore((s) => s.project.rackGearPalette)
     const selectedRackGearId = useProjectStore((s) => s.selectedRackGearId)
     const setSelectedRackGearId = useProjectStore((s) => s.setSelectedRackGearId)
     const updateRackGear = useProjectStore((s) => s.updateRackGear)
-    const addRackGearFromPalette = useProjectStore((s) => s.addRackGearFromPalette)
     const addRackPortLink = useProjectStore((s) => s.addRackPortLink)
     const removeRackPortLink = useProjectStore((s) => s.removeRackPortLink)
 
-    const [catalogSelect, setCatalogSelect] = useState('')
     const [wireDrag, setWireDrag] = useState<WireDragState | null>(null)
     const wireDragRef = useRef<WireDragState | null>(null)
     const stageNodeRef = useRef<KonvaStage | null>(null)
@@ -345,34 +654,137 @@ export const RackEditor = forwardRef<KonvaStage, RackEditorProps>(
       return { x: (clientX - rect.left) / sx, y: (clientY - rect.top) / sy }
     }, [])
 
-    const { width, height, railX, topY, bottomY, gearX, busStemX, busJogX, cabinetRect } = useMemo(
-      () => {
-        const w = PAD * 2 + RAIL_W + LABEL_W + 24 + BUS_LANE_W
-        const h = PAD * 2 + rack.totalRU * RU_PX + 36
-        const rx = PAD + 40
-        const ty = PAD + 32
-        const by = ty + rack.totalRU * RU_PX
-        const gx = rx + RAIL_W + 20
-        const stem = w - PAD - 22
+    const stageLayout = useMemo(() => {
+      const colW = PAD * 2 + RAIL_W + LABEL_W + 24 + BUS_LANE_W
+      const split = rack.totalRU > RACK_PREVIEW_SPLIT_ABOVE_RU
+      const ty = PAD + 32
+      const byFull = ty + rack.totalRU * RU_PX
+      const rx = PAD + 40
+      const gx = rx + RAIL_W + 20
+      const h = PAD * 2 + rack.totalRU * RU_PX + 36
+      if (!split) {
+        const stem = colW - PAD - 22
         const jog = stem - 48
         const cabX = rx - 10
         const cabY = ty - 12
         const cabW = gx + LABEL_W + 14 - cabX
-        const cabH = by - cabY + 14
+        const cabH = byFull - cabY + 14
         return {
-          width: w,
+          split: false as const,
+          width: colW,
           height: h,
           railX: rx,
           topY: ty,
-          bottomY: by,
+          bottomY: byFull,
           gearX: gx,
           busStemX: stem,
           busJogX: jog,
           cabinetRect: { x: cabX, y: cabY, w: cabW, h: cabH },
         }
+      }
+      const leftHigh = rack.totalRU
+      const leftLow = rack.totalRU - RACK_PREVIEW_TOP_COLUMN_RU + 1
+      const rightHigh = rack.totalRU - RACK_PREVIEW_TOP_COLUMN_RU
+      const rightLow = 1
+      const leftBandTopY = byFull - leftHigh * RU_PX
+      const leftBandHPx = (leftHigh - leftLow + 1) * RU_PX
+      const rightBandTopY = byFull - rightHigh * RU_PX
+      const rightBandHPx = (rightHigh - rightLow + 1) * RU_PX
+      const maxBandHPx = Math.max(leftBandHPx, rightBandHPx)
+      const width = colW * 2 + RACK_COL_GUTTER_PX
+      const stem = width - PAD - 22
+      const jog = stem - 48
+      return {
+        split: true as const,
+        width,
+        height: ty + maxBandHPx + PAD + 24,
+        colW,
+        gutter: RACK_COL_GUTTER_PX,
+        railX: rx,
+        gearX: gx,
+        topY: ty,
+        bottomY: byFull,
+        busStemX: stem,
+        busJogX: jog,
+        left: {
+          low: leftLow,
+          high: leftHigh,
+          bandTopY: leftBandTopY,
+          bandHPx: leftBandHPx,
+        },
+        right: {
+          low: rightLow,
+          high: rightHigh,
+          bandTopY: rightBandTopY,
+          bandHPx: rightBandHPx,
+        },
+      }
+    }, [rack.totalRU])
+
+    const gearOx = useCallback(
+      (gearId: string) => {
+        if (!stageLayout.split) return 0
+        const g = rack.gear.find((x) => x.id === gearId)
+        if (!g) return 0
+        const i = primarySplitColumnIndex(
+          g,
+          stageLayout.left.low,
+          stageLayout.left.high,
+          stageLayout.right.low,
+          stageLayout.right.high,
+        )
+        return i * (stageLayout.colW + stageLayout.gutter)
       },
-      [rack.totalRU],
+      [stageLayout, rack.gear],
     )
+
+    const gearStageYOffset = useCallback(
+      (gearId: string) => {
+        if (!stageLayout.split) return 0
+        const g = rack.gear.find((x) => x.id === gearId)
+        if (!g) return 0
+        const col = primarySplitColumnIndex(
+          g,
+          stageLayout.left.low,
+          stageLayout.left.high,
+          stageLayout.right.low,
+          stageLayout.right.high,
+        )
+        const band = col === 0 ? stageLayout.left : stageLayout.right
+        return stageLayout.topY - band.bandTopY
+      },
+      [stageLayout, rack.gear],
+    )
+
+    const stageContentBottomY = useMemo(() => {
+      if (!stageLayout.split) return stageLayout.bottomY
+      return stageLayout.topY + Math.max(stageLayout.left.bandHPx, stageLayout.right.bandHPx)
+    }, [stageLayout])
+
+    const { width, height, railX, topY, bottomY, gearX, busStemX, busJogX, cabinetRect } =
+      stageLayout.split
+        ? {
+            width: stageLayout.width,
+            height: stageLayout.height,
+            railX: stageLayout.railX,
+            topY: stageLayout.topY,
+            bottomY: stageLayout.bottomY,
+            gearX: stageLayout.gearX,
+            busStemX: stageLayout.busStemX,
+            busJogX: stageLayout.busJogX,
+            cabinetRect: { x: 0, y: 0, w: 0, h: 0 },
+          }
+        : {
+            width: stageLayout.width,
+            height: stageLayout.height,
+            railX: stageLayout.railX,
+            topY: stageLayout.topY,
+            bottomY: stageLayout.bottomY,
+            gearX: stageLayout.gearX,
+            busStemX: stageLayout.busStemX,
+            busJogX: stageLayout.busJogX,
+            cabinetRect: stageLayout.cabinetRect,
+          }
 
     const portLinkSegments = useMemo(() => {
       return rack.portLinks.map((link) => {
@@ -385,10 +797,10 @@ export const RackEditor = forwardRef<KonvaStage, RackEditorProps>(
         const lb = computeGearPortLayout(gb, LABEL_W)
         const pa = portCenterFromLayout(la, link.from.portKind, link.from.portIndex)
         const pb = portCenterFromLayout(lb, link.to.portKind, link.to.portIndex)
-        const x1 = gearX + pa.x
-        const y1 = ya + pa.y
-        const x2 = gearX + pb.x
-        const y2 = yb + pb.y
+        const x1 = gearOx(ga.id) + gearX + pa.x
+        const y1 = ya + pa.y + gearStageYOffset(ga.id)
+        const x2 = gearOx(gb.id) + gearX + pb.x
+        const y2 = yb + pb.y + gearStageYOffset(gb.id)
         const midX = (x1 + x2) / 2
         const points = [x1, y1, midX, y1, midX, y2, x2, y2]
         return {
@@ -397,7 +809,7 @@ export const RackEditor = forwardRef<KonvaStage, RackEditorProps>(
           portKind: link.from.portKind,
         }
       })
-    }, [rack.portLinks, rack.gear, bottomY, gearX])
+    }, [rack.portLinks, rack.gear, bottomY, gearX, gearOx, gearStageYOffset])
 
     const cableGraphics = useMemo((): {
       lines: number[][]
@@ -410,8 +822,8 @@ export const RackEditor = forwardRef<KonvaStage, RackEditorProps>(
 
       const yTop = gearYTopFromStartRu(bottomY, RU_PX, anchor.startRU, anchor.heightRU)
       const hPx = gearBlockHeightPx(anchor.heightRU)
-      const yMid = yTop + hPx / 2
-      const xPatchRight = gearX + LABEL_W
+      const yMid = yTop + hPx / 2 + gearStageYOffset(anchor.id)
+      const xPatchRight = gearOx(anchor.id) + gearX + LABEL_W
 
       const lineH = 20
       const y0 = topY + 28
@@ -424,7 +836,7 @@ export const RackEditor = forwardRef<KonvaStage, RackEditorProps>(
           ? deviceHoverLabel(dev)
           : `Missing device ${link.deviceId.slice(0, 6)}…`
         const text = `${devLabel} — ${link.patchLabel.trim()}`
-        const yBus = Math.min(bottomY - 8, y0 + i * lineH)
+        const yBus = Math.min(stageContentBottomY - 8, y0 + i * lineH)
 
         lines.push([
           xPatchRight,
@@ -439,7 +851,7 @@ export const RackEditor = forwardRef<KonvaStage, RackEditorProps>(
         labels.push({ x: busStemX + 6, y: yBus - 7, text })
       })
 
-      const ys = links.map((_, i) => Math.min(bottomY - 8, y0 + i * lineH))
+      const ys = links.map((_, i) => Math.min(stageContentBottomY - 8, y0 + i * lineH))
       const yMin = Math.min(yMid, ...ys) - 6
       const yMax = Math.max(yMid, ...ys) + 10
       lines.unshift([busStemX, yMin, busStemX, yMax])
@@ -454,6 +866,9 @@ export const RackEditor = forwardRef<KonvaStage, RackEditorProps>(
       gearX,
       busStemX,
       busJogX,
+      gearOx,
+      gearStageYOffset,
+      stageContentBottomY,
     ])
 
     const beginPortWireDrag = useCallback(
@@ -576,27 +991,6 @@ export const RackEditor = forwardRef<KonvaStage, RackEditorProps>(
             RJ45 uses one row up to 24 ports, then two rows.
           </span>
         </div>
-        <div className="tool-row" style={{ marginBottom: 8 }}>
-          <label className="field">
-            <span>Add from catalog</span>
-            <select
-              aria-label="Add rack gear from catalog"
-              value={catalogSelect}
-              onChange={(e) => {
-                const id = e.target.value
-                setCatalogSelect('')
-                if (id) addRackGearFromPalette(id)
-              }}
-            >
-              <option value="">Choose preset…</option>
-              {rackGearPalette.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.productName} ({t.heightRU}U)
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
         <Stage ref={setStageRef} width={width} height={height}>
           <Layer>
             <Rect
@@ -614,331 +1008,212 @@ export const RackEditor = forwardRef<KonvaStage, RackEditorProps>(
               fontSize={14}
               fontFamily="system-ui, sans-serif"
             />
-            <Rect
-              listening={false}
-              x={cabinetRect.x}
-              y={cabinetRect.y}
-              width={cabinetRect.w}
-              height={cabinetRect.h}
-              fill="#0a0e14"
-              stroke="#3d4d62"
-              strokeWidth={2}
-              cornerRadius={12}
-            />
-            <Rect
-              listening={false}
-              x={cabinetRect.x + 6}
-              y={cabinetRect.y + 6}
-              width={cabinetRect.w - 12}
-              height={cabinetRect.h - 12}
-              fill="#0d1218"
-              stroke="#1e2a38"
-              strokeWidth={1}
-              cornerRadius={8}
-            />
-            <Rect
-              listening={false}
-              x={railX}
-              y={topY}
-              width={RAIL_W}
-              height={rack.totalRU * RU_PX}
-              stroke="#5c6b7a"
-              fill="#151b24"
-              cornerRadius={4}
-            />
-            {Array.from({ length: rack.totalRU + 1 }, (_, i) => {
-              const y = topY + i * RU_PX
-              return (
+            {!stageLayout.split ? (
+              <>
+                <Rect
+                  listening={false}
+                  x={cabinetRect.x}
+                  y={cabinetRect.y}
+                  width={cabinetRect.w}
+                  height={cabinetRect.h}
+                  fill="#0a0e14"
+                  stroke="#3d4d62"
+                  strokeWidth={2}
+                  cornerRadius={12}
+                />
+                <Rect
+                  listening={false}
+                  x={cabinetRect.x + 6}
+                  y={cabinetRect.y + 6}
+                  width={cabinetRect.w - 12}
+                  height={cabinetRect.h - 12}
+                  fill="#0d1218"
+                  stroke="#1e2a38"
+                  strokeWidth={1}
+                  cornerRadius={8}
+                />
+                <Rect
+                  listening={false}
+                  x={railX}
+                  y={topY}
+                  width={RAIL_W}
+                  height={rack.totalRU * RU_PX}
+                  stroke="#5c6b7a"
+                  fill="#151b24"
+                  cornerRadius={4}
+                />
+                {Array.from({ length: rack.totalRU + 1 }, (_, i) => {
+                  const y = topY + i * RU_PX
+                  return (
+                    <Line
+                      listening={false}
+                      key={`ru-h-${i}`}
+                      points={[railX, y, railX + RAIL_W, y]}
+                      stroke="#2a3544"
+                      strokeWidth={1}
+                    />
+                  )
+                })}
+                {Array.from({ length: rack.totalRU }, (_, i) => {
+                  const ru = rack.totalRU - i
+                  const y = topY + i * RU_PX + RU_PX * 0.14
+                  return (
+                    <Text
+                      listening={false}
+                      key={`ru-l-${ru}`}
+                      x={railX - 52}
+                      y={y}
+                      text={String(ru)}
+                      fill="#7a8a9c"
+                      fontSize={13}
+                      fontFamily="system-ui, sans-serif"
+                    />
+                  )
+                })}
                 <Line
                   listening={false}
-                  key={`ru-h-${i}`}
-                  points={[railX, y, railX + RAIL_W, y]}
-                  stroke="#2a3544"
-                  strokeWidth={1}
+                  points={[railX + RAIL_W + 8, topY, railX + RAIL_W + 8, bottomY]}
+                  stroke="#3d5a80"
+                  strokeWidth={2}
                 />
-              )
-            })}
-            {Array.from({ length: rack.totalRU }, (_, i) => {
-              const ru = rack.totalRU - i
-              const y = topY + i * RU_PX + RU_PX * 0.14
-              return (
-                <Text
-                  listening={false}
-                  key={`ru-l-${ru}`}
-                  x={railX - 52}
-                  y={y}
-                  text={String(ru)}
-                  fill="#7a8a9c"
-                  fontSize={13}
-                  fontFamily="system-ui, sans-serif"
-                />
-              )
-            })}
-            <Line
-              listening={false}
-              points={[railX + RAIL_W + 8, topY, railX + RAIL_W + 8, bottomY]}
-              stroke="#3d5a80"
-              strokeWidth={2}
-            />
-            {rack.gear.map((g) => {
-              const yTop = gearYTopFromStartRu(bottomY, RU_PX, g.startRU, g.heightRU)
-              const rj = normalizeRackPortCount(g.rj45PortCount)
-              const sfp = normalizeRackPortCount(g.sfpPortCount)
-              const layout = computeGearPortLayout(g, LABEL_W)
-              const displayH = layout.blockH
-              const hitR = layout.hitRadius
-              const rjVisR = layout.rj45VisRadius
-              const sfpHalf = layout.sfpVisHalf
-              const selected = g.id === selectedRackGearId
-              const faceCols = columnXBounds(LABEL_W)
-              return (
-                <Group
-                  key={g.id}
-                  x={gearX}
-                  y={yTop}
-                  draggable={!wireDrag}
-                  dragBoundFunc={(pos) => {
-                    const nextStart = startRuFromYTop(
-                      bottomY,
-                      RU_PX,
-                      pos.y,
-                      g.heightRU,
-                      rack.totalRU,
-                    )
-                    const snappedY = gearYTopFromStartRu(
-                      bottomY,
-                      RU_PX,
-                      nextStart,
-                      g.heightRU,
-                    )
-                    return { x: gearX, y: snappedY }
-                  }}
-                  onTap={() => setSelectedRackGearId(g.id)}
-                  onClick={() => setSelectedRackGearId(g.id)}
-                  onDblClick={() => setSelectedRackGearId(g.id)}
-                  onDblTap={() => setSelectedRackGearId(g.id)}
-                  onDragEnd={(e) => {
-                    const node = e.target
-                    const startRU = startRuFromYTop(
-                      bottomY,
-                      RU_PX,
-                      node.y(),
-                      g.heightRU,
-                      rack.totalRU,
-                    )
-                    updateRackGear(g.id, { startRU })
-                    node.position({
-                      x: gearX,
-                      y: gearYTopFromStartRu(bottomY, RU_PX, startRU, g.heightRU),
-                    })
-                  }}
-                >
-                  <Rect
-                    width={LABEL_W}
-                    height={displayH}
-                    fill="#152535"
-                    stroke={selected ? '#7ec8ff' : '#3d5a78'}
-                    strokeWidth={selected ? 2.5 : 1.25}
-                    cornerRadius={8}
-                    shadowColor="#000"
-                    shadowBlur={selected ? 10 : 4}
-                    shadowOpacity={0.35}
+                {rack.gear.map((g) => (
+                  <RackGearMount
+                    key={g.id}
+                    g={g}
+                    bottomY={bottomY}
+                    gearX={gearX}
+                    rackTotalRU={rack.totalRU}
+                    selectedRackGearId={selectedRackGearId}
+                    wireDrag={wireDrag}
+                    setSelectedRackGearId={setSelectedRackGearId}
+                    updateRackGear={updateRackGear}
+                    beginPortWireDrag={beginPortWireDrag}
+                    handlePortMouseUp={handlePortMouseUp}
                   />
-                  <Text
-                    x={14}
-                    y={6}
-                    width={LABEL_W - 28}
-                    text={g.productName}
-                    fill="#e8eef4"
-                    fontSize={displayH <= RU_PX ? 13 : 15}
-                    fontFamily="system-ui, sans-serif"
-                    ellipsis
-                  />
-                  <Text
-                    x={14}
-                    y={displayH <= RU_PX ? 22 : 28}
-                    width={LABEL_W - 28}
-                    text={`${g.heightRU}U · bottom RU ${g.startRU}`}
-                    fill="#98a7b8"
-                    fontSize={displayH <= RU_PX ? 10 : 12}
-                    fontFamily="system-ui, sans-serif"
-                    ellipsis
-                  />
-                  <Text
-                    x={faceCols.rj.xL}
-                    y={GEAR_TITLE_OVERLAY_H - 16}
-                    width={faceCols.rj.xR - faceCols.rj.xL}
-                    align="left"
-                    text="RJ45"
-                    fill="#7ecf9a"
-                    fontSize={11}
-                    fontFamily="system-ui, sans-serif"
-                  />
-                  <Text
-                    x={faceCols.sfp.xL}
-                    y={GEAR_TITLE_OVERLAY_H - 16}
-                    width={faceCols.sfp.xR - faceCols.sfp.xL}
-                    align="center"
-                    text="SFP"
-                    fill="#f0a030"
-                    fontSize={11}
-                    fontFamily="system-ui, sans-serif"
-                  />
-                  {Array.from({ length: rj }, (_, i) => {
-                    const { x, y } = layout.rj45[i]!
-                    const ep: RackPortEndpoint = {
-                      gearId: g.id,
-                      portKind: 'rj45',
-                      portIndex: i,
-                    }
-                    const jackW = Math.max(22, rjVisR * 2.65)
-                    const jackH = Math.max(16, rjVisR * 1.75)
-                    const pinCount = 8
-                    return (
-                      <Group key={`rj-${g.id}-${i}`}>
-                        <Group listening={false} x={x} y={y}>
-                          {/* Outer housing */}
-                          <Rect
-                            x={-jackW / 2}
-                            y={-jackH / 2}
-                            width={jackW}
-                            height={jackH}
-                            fill={RJ45_HOUSING_FILL}
-                            stroke={RJ45_HOUSING_STROKE}
-                            strokeWidth={1.25}
-                            cornerRadius={3.5}
+                ))}
+              </>
+            ) : (
+              (['left', 'right'] as const).map((side, colIdx) => {
+                const ox = colIdx * (stageLayout.colW + stageLayout.gutter)
+                const band = side === 'left' ? stageLayout.left : stageLayout.right
+                const ruCount = band.high - band.low + 1
+                const cabX = railX - 10
+                const cabY = band.bandTopY - 12
+                const cabBot = band.bandTopY + band.bandHPx
+                const cabW = gearX + LABEL_W + 14 - cabX
+                const cabH = cabBot - cabY + 14
+                return (
+                  <Group key={side} x={ox} y={topY - band.bandTopY}>
+                    <Rect
+                      listening={false}
+                      x={cabX}
+                      y={cabY}
+                      width={cabW}
+                      height={cabH}
+                      fill="#0a0e14"
+                      stroke="#3d4d62"
+                      strokeWidth={2}
+                      cornerRadius={12}
+                    />
+                    <Rect
+                      listening={false}
+                      x={cabX + 6}
+                      y={cabY + 6}
+                      width={cabW - 12}
+                      height={cabH - 12}
+                      fill="#0d1218"
+                      stroke="#1e2a38"
+                      strokeWidth={1}
+                      cornerRadius={8}
+                    />
+                    <Group
+                      x={0}
+                      clipX={0}
+                      clipY={band.bandTopY}
+                      clipWidth={stageLayout.colW}
+                      clipHeight={band.bandHPx + 2}
+                    >
+                      <Rect
+                        listening={false}
+                        x={railX}
+                        y={band.bandTopY}
+                        width={RAIL_W}
+                        height={band.bandHPx}
+                        stroke="#5c6b7a"
+                        fill="#151b24"
+                        cornerRadius={4}
+                      />
+                      {Array.from({ length: ruCount + 1 }, (_, i) => {
+                        const y = band.bandTopY + i * RU_PX
+                        return (
+                          <Line
+                            listening={false}
+                            key={`${side}-ru-h-${i}`}
+                            points={[railX, y, railX + RAIL_W, y]}
+                            stroke="#2a3544"
+                            strokeWidth={1}
                           />
-                          {/* Inner bezel */}
-                          <Rect
-                            x={-jackW * 0.44}
-                            y={-jackH * 0.4}
-                            width={jackW * 0.88}
-                            height={jackH * 0.72}
-                            fill={RJ45_CAVITY_FILL}
-                            stroke={RJ45_SLOT_STROKE}
-                            strokeWidth={0.75}
-                            cornerRadius={2}
+                        )
+                      })}
+                      {Array.from({ length: ruCount }, (_, i) => {
+                        const ru = band.high - i
+                        const y = band.bandTopY + i * RU_PX + RU_PX * 0.14
+                        return (
+                          <Text
+                            listening={false}
+                            key={`${side}-ru-l-${ru}`}
+                            x={railX - 52}
+                            y={y}
+                            text={String(ru)}
+                            fill="#7a8a9c"
+                            fontSize={13}
+                            fontFamily="system-ui, sans-serif"
                           />
-                          {/* Plug slot (contrast opening) */}
-                          <Rect
-                            x={-jackW * 0.34}
-                            y={-jackH * 0.32}
-                            width={jackW * 0.68}
-                            height={jackH * 0.38}
-                            fill="#0a0e12"
-                            stroke={RJ45_SLOT_STROKE}
-                            strokeWidth={0.5}
-                            cornerRadius={1.5}
-                          />
-                          {/* Latch tab hint (bottom of jack) */}
-                          <Rect
-                            x={-jackW * 0.12}
-                            y={jackH * 0.22}
-                            width={jackW * 0.24}
-                            height={jackH * 0.22}
-                            fill={RJ45_LATCH_FILL}
-                            stroke="#3d4d62"
-                            strokeWidth={0.5}
-                            cornerRadius={1}
-                          />
-                          {/* Eight gold contacts, even spacing */}
-                          {Array.from({ length: pinCount }, (_, pi) => {
-                            const span = jackW * 0.58
-                            const pinW = Math.max(1.1, span / (pinCount * 1.85))
-                            const gap = (span - pinW * pinCount) / (pinCount + 1)
-                            const x0 = -span / 2 + gap
-                            return (
-                              <Rect
-                                key={`rj-pin-${g.id}-${i}-${pi}`}
-                                x={x0 + pi * (pinW + gap)}
-                                y={-jackH * 0.08}
-                                width={pinW}
-                                height={jackH * 0.14}
-                                fill={RJ45_CONTACT_GOLD}
-                                stroke="#8a7018"
-                                strokeWidth={0.35}
-                                cornerRadius={0.5}
-                              />
-                            )
-                          })}
-                        </Group>
-                        <Rect
-                          x={x - jackW / 2}
-                          y={y - jackH / 2}
-                          width={jackW}
-                          height={jackH}
-                          fill="rgba(0,0,0,0.001)"
-                          listening
-                          perfectDrawEnabled={false}
-                          onMouseDown={(ev) => {
-                            setSelectedRackGearId(g.id)
-                            beginPortWireDrag(ev, ep)
-                          }}
-                          onMouseUp={(ev) => handlePortMouseUp(ev, ep)}
-                        />
-                        <Text
-                          listening={false}
-                          x={x - 10}
-                          y={y + jackH / 2 + 4}
-                          width={20}
-                          align="center"
-                          text={String(i + 1)}
-                          fill="#6a8a78"
-                          fontSize={10}
-                          fontFamily="system-ui, sans-serif"
-                        />
-                      </Group>
-                    )
-                  })}
-                  {Array.from({ length: sfp }, (_, i) => {
-                    const { x, y } = layout.sfp[i]!
-                    const ep: RackPortEndpoint = {
-                      gearId: g.id,
-                      portKind: 'sfp',
-                      portIndex: i,
-                    }
-                    return (
-                      <Group key={`sfp-${g.id}-${i}`}>
-                        <Circle
-                          x={x}
-                          y={y}
-                          radius={hitR}
-                          fill="rgba(0,0,0,0.02)"
-                          perfectDrawEnabled={false}
-                          onMouseDown={(ev) => {
-                            setSelectedRackGearId(g.id)
-                            beginPortWireDrag(ev, ep)
-                          }}
-                          onMouseUp={(ev) => handlePortMouseUp(ev, ep)}
-                        />
-                        <Rect
-                          listening={false}
-                          x={x - sfpHalf}
-                          y={y - sfpHalf}
-                          width={sfpHalf * 2}
-                          height={sfpHalf * 2}
-                          fill={SFP_PORT_FILL}
-                          stroke={SFP_PORT_STROKE}
-                          strokeWidth={1.5}
-                          cornerRadius={3}
-                        />
-                        <Text
-                          listening={false}
-                          x={x - 10}
-                          y={y + sfpHalf + 4}
-                          width={20}
-                          align="center"
-                          text={String(i + 1)}
-                          fill="#b8925a"
-                          fontSize={10}
-                          fontFamily="system-ui, sans-serif"
-                        />
-                      </Group>
-                    )
-                  })}
-                </Group>
-              )
-            })}
+                        )
+                      })}
+                      <Line
+                        listening={false}
+                        points={[
+                          railX + RAIL_W + 8,
+                          band.bandTopY,
+                          railX + RAIL_W + 8,
+                          band.bandTopY + band.bandHPx,
+                        ]}
+                        stroke="#3d5a80"
+                        strokeWidth={2}
+                      />
+                      {rack.gear
+                        .filter(
+                          (g) =>
+                            primarySplitColumnIndex(
+                              g,
+                              stageLayout.left.low,
+                              stageLayout.left.high,
+                              stageLayout.right.low,
+                              stageLayout.right.high,
+                            ) === colIdx,
+                        )
+                        .map((g) => (
+                          <Group key={g.id} x={gearOx(g.id) - ox} y={0}>
+                            <RackGearMount
+                              g={g}
+                              bottomY={bottomY}
+                              gearX={gearX}
+                              rackTotalRU={rack.totalRU}
+                              selectedRackGearId={selectedRackGearId}
+                              wireDrag={wireDrag}
+                              setSelectedRackGearId={setSelectedRackGearId}
+                              updateRackGear={updateRackGear}
+                              beginPortWireDrag={beginPortWireDrag}
+                              handlePortMouseUp={handlePortMouseUp}
+                            />
+                          </Group>
+                        ))}
+                    </Group>
+                  </Group>
+                )
+              })
+            )}
             {portLinkSegments.map(
               (seg) =>
                 seg && (

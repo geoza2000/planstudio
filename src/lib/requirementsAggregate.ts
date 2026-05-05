@@ -64,7 +64,6 @@ export function panelDinRollup(project: PlanstudioProject): {
   for (const slot of project.panel.slots) {
     if (slot.spanAnchorId) continue
     const hasIdentity =
-      Boolean(slot.catalogCode?.trim()) ||
       Boolean(slot.manufacturerLine?.trim()) ||
       Boolean(slot.description?.trim()) ||
       slot.moduleType !== 'blank'

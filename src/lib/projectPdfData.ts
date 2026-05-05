@@ -1,25 +1,18 @@
-import { roomBucketForPoint } from './bom'
 import type { BomLine } from './bom'
 import { manufacturerLineForBomLine } from './bomManufacturer'
+import {
+  templateListBomSubtitle,
+  templateListDisplayTitle,
+  templateListMetaLine,
+} from './deviceCatalog'
 import { anchorSlotForCell } from './panelSpans'
-import { deviceTypeRollupLabel } from '../types/project'
-import type {
-  FloorDevice,
-  PlanRegion,
-  PlanstudioProject,
-  WallMountDevice,
-} from '../types/project'
+import type { PanelSlot, PlanstudioProject, RackGear } from '../types/project'
 
 const OTHER_MFG_SORT_KEY = '__other__'
 
 /** Floor + wall BOM lines only (excludes panel / rack from site shopping rollups). */
 export function isFloorWallShoppingLine(ln: BomLine): boolean {
   return ln.source === 'floor' || ln.source === 'wall'
-}
-
-function knxLineLabel(p: PlanstudioProject, knxLineId?: string): string {
-  if (!knxLineId) return ''
-  return p.knxLines.find((l) => l.id === knxLineId)?.label?.trim() || knxLineId
 }
 
 function truncateCell(s: string, max = 120): string {
@@ -54,205 +47,182 @@ export function formatProjectMetaLines(p: PlanstudioProject): string[] {
   return lines
 }
 
-function regionNameForId(regions: PlanRegion[], id: string | undefined): string | null {
-  if (!id) return null
-  const r = regions.find((x) => x.id === id)
-  if (!r) return null
-  return r.label.trim() || r.kind
+/** Panel grid: label / name first (like template display), then product (BOM) when distinct. */
+function pdfPanelProductCell(anchor: PanelSlot): string {
+  const label = anchor.label?.trim() ?? ''
+  const product = String(anchor.productName ?? '').trim()
+  const title = label || product || anchor.moduleType
+  const second = product && product !== title ? product : undefined
+  return second ? `${title}\n${second}` : title
 }
 
-function catalogRowForDevice(
-  p: PlanstudioProject,
-  d: FloorDevice | WallMountDevice,
-): { manufacturer: string; catalog: string } {
-  if (!d.templateId) return { manufacturer: '', catalog: '' }
-  const t = p.deviceCatalog.find((x) => x.id === d.templateId)
-  if (!t) return { manufacturer: '', catalog: '' }
-  return {
-    manufacturer: (t.manufacturerLine ?? '').trim(),
-    catalog: (t.catalogCode ?? '').trim(),
-  }
+/** One catalog template row — same layout as the Devices tab template list (not per plan mark). */
+export type PdfDeviceListEntry = {
+  context: string
+  displayTitle: string
+  bom?: string
+  meta: string
+  tail?: string
 }
 
-function deviceDetailNotes(p: PlanstudioProject, d: FloorDevice | WallMountDevice): string {
-  const bits: string[] = []
-  if (d.requirements?.notes?.trim()) bits.push(d.requirements.notes.trim())
-  if (d.templateId) {
-    const t = p.deviceCatalog.find((x) => x.id === d.templateId)
-    if (t?.displayName?.trim()) bits.push(`Catalog: ${t.displayName.trim()}`)
-  }
-  return truncateCell(bits.join(' · '), 140)
-}
-
-/** Device documentation table (plan + wall marks; mirrors BOM wall skip rules). */
-export function buildPdfDeviceRows(p: PlanstudioProject): string[][] {
-  const header = [
-    'Floor',
-    'Room / area',
-    'Location',
-    'Label',
-    'Type',
-    'Product',
-    'Unit €',
-    'Manufacturer',
-    'Catalog',
-    'Circuit',
-    'KNX line',
-    'Mount / link',
-    'Description',
-  ]
-  const rows: string[][] = [header]
-  const floors = [...p.floors].sort(
-    (a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id),
-  )
-  for (const fl of floors) {
-    const regions = fl.plan.regions
-    for (const d of fl.plan.devices) {
-      const b = roomBucketForPoint({ x: d.x, y: d.y }, regions)
-      const cat = catalogRowForDevice(p, d)
-      const noteParts: string[] = []
-      if (d.linkedWallDeviceId) noteParts.push('linked wall')
-      if (d.mounting === 'ceiling') noteParts.push('ceiling')
-      if (d.mounting === 'wall') noteParts.push('wall mirror')
-      rows.push([
-        fl.label,
-        b.name,
-        'Plan',
-        d.label,
-        deviceTypeRollupLabel(d.type, d.connectorSubtype),
-        d.productName,
-        String(d.unitPrice),
-        cat.manufacturer || (d.templateId ? '' : '—'),
-        cat.catalog,
-        d.circuitRef,
-        knxLineLabel(p, d.knxLineId),
-        noteParts.join(' · '),
-        deviceDetailNotes(p, d),
-      ])
-    }
-    const regionsW = fl.plan.regions
-    for (const ws of fl.wallSheets) {
-      const fromWall = regionNameForId(regionsW, ws.roomRegionId)
-      for (const d of ws.devices) {
-        if (d.linkedFloorDeviceId) {
-          const fd = fl.plan.devices.find((x) => x.id === d.linkedFloorDeviceId)
-          if (fd) continue
-        }
-        let roomCol = fromWall || '—'
-        if (d.linkedFloorDeviceId) {
-          const linked = fl.plan.devices.find((x) => x.id === d.linkedFloorDeviceId)
-          if (linked) {
-            roomCol = roomBucketForPoint({ x: linked.x, y: linked.y }, regionsW).name
-          }
-        }
-        const cat = catalogRowForDevice(p, d)
-        rows.push([
-          fl.label,
-          roomCol,
-          `Wall · ${ws.label}`,
-          d.label,
-          deviceTypeRollupLabel(d.type, d.connectorSubtype),
-          d.productName,
-          String(d.unitPrice),
-          cat.manufacturer || (d.templateId ? '' : '—'),
-          cat.catalog,
-          d.circuitRef,
-          knxLineLabel(p, d.knxLineId),
-          d.linkedFloorDeviceId ? 'linked plan' : '',
-          deviceDetailNotes(p, d),
-        ])
+export function buildPdfDeviceListEntries(p: PlanstudioProject): PdfDeviceListEntry[] {
+  const cat = p.deviceCatalog ?? []
+  return [...cat]
+    .sort(
+      (a, b) =>
+        templateListDisplayTitle(a).localeCompare(templateListDisplayTitle(b)) ||
+        a.id.localeCompare(b.id),
+    )
+    .map((t) => {
+      const placement =
+        t.mounting === 'both' ? 'Plan + wall' : t.mounting === 'wall' ? 'Wall' : 'Ceiling / plan'
+      const title = templateListDisplayTitle(t)
+      const bom = templateListBomSubtitle(t)
+      const meta = templateListMetaLine(t)
+      const bits: string[] = []
+      if (t.manufacturerLine?.trim()) bits.push(t.manufacturerLine.trim())
+      if (t.requirements?.notes?.trim()) bits.push(t.requirements.notes.trim())
+      const tail = bits.length ? truncateCell(bits.join(' · '), 160) : undefined
+      return {
+        context: `${placement} · template id ${t.id}`,
+        displayTitle: title,
+        bom,
+        meta,
+        tail,
       }
-    }
-  }
-  return rows
+    })
 }
 
-export function panelEquipmentRows(p: PlanstudioProject): string[][] {
-  const rows: string[][] = [
-    [
-      'Row',
-      'Col',
-      'Type',
-      'Label',
-      'Product',
-      'Unit €',
-      'Bill cat.',
-      'Circuit',
-      'Rating A',
-      'KNX line',
-      'Mfg',
-      'Catalog',
-      'Description',
-      'DIN mm',
-      'Rail mm',
-      'Span TE',
-    ],
-  ]
+/** Panel / rack equipment or shopping line for PDF price tables. */
+export type PdfEquipmentPriceRow = {
+  name: string
+  note?: string
+  qty: number
+  unitPrice: number
+  lineTotal: number
+  /** Bold total row; unit column left blank when zero. */
+  isTotal?: boolean
+}
+
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+function panelSlotNameNote(anchor: PanelSlot, row1: number, col1: number): { name: string; note?: string } {
+  const cell = pdfPanelProductCell(anchor)
+  const lines = cell.split('\n').map((s) => s.trim()).filter(Boolean)
+  const name = lines[0] ?? anchor.moduleType
+  const fromCell = lines.slice(1).join('\n')
+  const noteParts = [
+    fromCell || undefined,
+    anchor.description?.trim() || undefined,
+    `Row ${row1} · Col ${col1} · ${anchor.moduleType}`,
+    anchor.manufacturerLine?.trim() || undefined,
+  ].filter(Boolean) as string[]
+  const note = noteParts.length ? noteParts.join('\n') : undefined
+  return { name, note }
+}
+
+function rackGearNameNote(g: RackGear): { name: string; note?: string } {
+  const name = g.productName.trim() || 'Rack item'
+  const noteParts = [
+    g.notes?.trim() || undefined,
+    `${g.startRU} U · ${g.heightRU} U high`,
+    g.rj45PortCount != null || g.sfpPortCount != null
+      ? `RJ45 ${g.rj45PortCount ?? 0} · SFP ${g.sfpPortCount ?? 0}`
+      : undefined,
+  ].filter(Boolean) as string[]
+  const note = noteParts.length ? noteParts.join('\n') : undefined
+  return { name, note }
+}
+
+export function buildPanelEquipmentPriceTable(p: PlanstudioProject): PdfEquipmentPriceRow[] {
+  const body: PdfEquipmentPriceRow[] = []
   const { slots, widthTe, rows: nRows } = p.panel
   for (let r = 0; r < nRows; r++) {
     for (let c = 0; c < widthTe; c++) {
       const anchor = anchorSlotForCell(slots, r, c)
       if (!anchor || anchor.row !== r || anchor.col !== c) continue
       if (anchor.moduleType === 'blank' && !String(anchor.productName).trim()) continue
-      rows.push([
-        String(r + 1),
-        String(c + 1),
-        anchor.moduleType,
-        anchor.label,
-        anchor.productName,
-        String(anchor.unitPrice),
-        anchor.billCategory,
-        anchor.circuitRef,
-        anchor.ratingA != null ? String(anchor.ratingA) : '',
-        knxLineLabel(p, anchor.knxLineId),
-        anchor.manufacturerLine ?? '',
-        anchor.catalogCode ?? '',
-        truncateCell(anchor.description ?? '', 80),
-        anchor.dinRailSegmentMm != null ? String(anchor.dinRailSegmentMm) : '',
-        anchor.railConsumeMm != null ? String(anchor.railConsumeMm) : '',
-        String(anchor.spanWidthTe ?? 1),
-      ])
+      const { name, note } = panelSlotNameNote(anchor, r + 1, c + 1)
+      const unit = Number(anchor.unitPrice) || 0
+      body.push({
+        name,
+        note,
+        qty: 1,
+        unitPrice: unit,
+        lineTotal: roundMoney(unit),
+      })
     }
   }
-  return rows
+  if (body.length === 0) return []
+  const sumQty = body.reduce((s, x) => s + x.qty, 0)
+  const sumTot = roundMoney(body.reduce((s, x) => s + x.lineTotal, 0))
+  body.push({
+    name: 'Total',
+    qty: sumQty,
+    unitPrice: 0,
+    lineTotal: sumTot,
+    isTotal: true,
+  })
+  return body
 }
 
-export function rackEquipmentRows(p: PlanstudioProject): string[][] {
-  const rows: string[][] = [
-    [
-      'Start RU',
-      'Height U',
-      'Product',
-      'Unit €',
-      'Bill cat.',
-      'RJ45',
-      'SFP',
-      'Notes',
-    ],
-  ]
+export function buildRackEquipmentPriceTable(p: PlanstudioProject): PdfEquipmentPriceRow[] {
+  const body: PdfEquipmentPriceRow[] = []
   for (const g of [...p.rack.gear].sort((a, b) => a.startRU - b.startRU)) {
-    rows.push([
-      String(g.startRU),
-      String(g.heightRU),
-      g.productName,
-      String(g.unitPrice),
-      g.billCategory,
-      g.rj45PortCount != null ? String(g.rj45PortCount) : '',
-      g.sfpPortCount != null ? String(g.sfpPortCount) : '',
-      truncateCell(g.notes ?? '', 120),
-    ])
+    const { name, note } = rackGearNameNote(g)
+    const unit = Number(g.unitPrice) || 0
+    body.push({
+      name,
+      note,
+      qty: 1,
+      unitPrice: unit,
+      lineTotal: roundMoney(unit),
+    })
   }
-  rows.push([
-    '—',
-    '—',
-    p.rack.enclosureProductName || 'Rack enclosure',
-    String(p.rack.enclosureUnitPrice),
-    p.rack.enclosureBillCategory,
-    '',
-    '',
-    'Cabinet / frame',
-  ])
-  return rows
+  const encName = (p.rack.enclosureProductName || 'Rack enclosure').trim()
+  const encUnit = Number(p.rack.enclosureUnitPrice) || 0
+  body.push({
+    name: encName,
+    note: 'Cabinet / frame',
+    qty: 1,
+    unitPrice: encUnit,
+    lineTotal: roundMoney(encUnit),
+  })
+  const sumQty = body.reduce((s, x) => s + x.qty, 0)
+  const sumTot = roundMoney(body.reduce((s, x) => s + x.lineTotal, 0))
+  body.push({
+    name: 'Total',
+    qty: sumQty,
+    unitPrice: 0,
+    lineTotal: sumTot,
+    isTotal: true,
+  })
+  return body
+}
+
+export function buildShoppingPriceTable(
+  items: { name: string; qty: number; unitPrice: number; lineTotal: number; manufacturer: string }[],
+): PdfEquipmentPriceRow[] {
+  const body: PdfEquipmentPriceRow[] = items.map((it) => ({
+    name: it.name,
+    note: it.manufacturer?.trim() || undefined,
+    qty: it.qty,
+    unitPrice: it.unitPrice,
+    lineTotal: roundMoney(it.lineTotal),
+  }))
+  if (body.length === 0) return []
+  const sumQty = body.reduce((s, x) => s + x.qty, 0)
+  const sumTot = roundMoney(body.reduce((s, x) => s + x.lineTotal, 0))
+  body.push({
+    name: 'Total',
+    qty: sumQty,
+    unitPrice: 0,
+    lineTotal: sumTot,
+    isTotal: true,
+  })
+  return body
 }
 
 export function aggregateShoppingLines(
@@ -283,10 +253,45 @@ export function aggregateShoppingLines(
   return [...m.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
+/** Floor / wall shopping lines as equipment-style PDF rows (with total), same columns as panel/rack. */
+function bomLinesToPdfEquipmentTable(
+  lines: BomLine[],
+  noteForLine: (ln: BomLine) => string | undefined,
+): PdfEquipmentPriceRow[] {
+  if (lines.length === 0) return []
+  const sorted = [...lines].sort(
+    (a, b) =>
+      a.name.localeCompare(b.name) ||
+      a.sectionPath.localeCompare(b.sectionPath) ||
+      a.floor.localeCompare(b.floor),
+  )
+  const body: PdfEquipmentPriceRow[] = sorted.map((ln) => {
+    const rawNote = noteForLine(ln)
+    const note = rawNote?.trim() ? truncateCell(rawNote.trim(), 140) : undefined
+    return {
+      name: ln.name,
+      note,
+      qty: ln.qty,
+      unitPrice: ln.unitPrice,
+      lineTotal: roundMoney(ln.lineTotal),
+    }
+  })
+  const sumQty = body.reduce((s, x) => s + x.qty, 0)
+  const sumTot = roundMoney(body.reduce((s, x) => s + x.lineTotal, 0))
+  body.push({
+    name: 'Total',
+    qty: sumQty,
+    unitPrice: 0,
+    lineTotal: sumTot,
+    isTotal: true,
+  })
+  return body
+}
+
 export type ShoppingManufacturerGroup = {
   sortKey: string
   displayTitle: string
-  lines: string[]
+  rows: PdfEquipmentPriceRow[]
 }
 
 export function shoppingGroupsByManufacturer(
@@ -294,17 +299,15 @@ export function shoppingGroupsByManufacturer(
   lines: BomLine[],
 ): ShoppingManufacturerGroup[] {
   const siteLines = lines.filter(isFloorWallShoppingLine)
-  const m = new Map<string, { displayTitle: string; lines: string[] }>()
+  const m = new Map<string, { displayTitle: string; items: BomLine[] }>()
   for (const ln of siteLines) {
     const raw = manufacturerLineForBomLine(p, ln).trim()
     const sortKey = raw ? raw.toLowerCase() : OTHER_MFG_SORT_KEY
     const displayTitle = raw || 'Other'
     if (!m.has(sortKey)) {
-      m.set(sortKey, { displayTitle, lines: [] })
+      m.set(sortKey, { displayTitle, items: [] })
     }
-    m.get(sortKey)!.lines.push(
-      `${ln.name} × ${ln.qty} · unit €${ln.unitPrice.toFixed(2)} · line €${ln.lineTotal.toFixed(2)} · ${ln.sectionPath}`,
-    )
+    m.get(sortKey)!.items.push(ln)
   }
   return [...m.entries()]
     .sort(([a], [b]) => {
@@ -315,34 +318,40 @@ export function shoppingGroupsByManufacturer(
     .map(([sortKey, v]) => ({
       sortKey,
       displayTitle: v.displayTitle,
-      lines: v.lines.sort((x, y) => x.localeCompare(y)),
+      rows: bomLinesToPdfEquipmentTable(v.items, (ln) =>
+        [ln.floor, ln.room, ln.sectionPath].filter((x) => x?.trim()).join(' · '),
+      ),
     }))
 }
 
 export type ShoppingFloorGroup = {
   sortKey: string
   displayTitle: string
-  lines: string[]
+  rows: PdfEquipmentPriceRow[]
 }
 
-export function shoppingGroupsByFloor(lines: BomLine[]): ShoppingFloorGroup[] {
+export function shoppingGroupsByFloor(
+  p: PlanstudioProject,
+  lines: BomLine[],
+): ShoppingFloorGroup[] {
   const floorLines = lines.filter(isFloorWallShoppingLine).filter((l) => l.floor !== '—')
-  const m = new Map<string, { displayTitle: string; lines: string[] }>()
+  const m = new Map<string, { displayTitle: string; items: BomLine[] }>()
   for (const ln of floorLines) {
     const sortKey = ln.floor.trim().toLowerCase() || '(no floor)'
     const displayTitle = ln.floor.trim() || '(No floor)'
     if (!m.has(sortKey)) {
-      m.set(sortKey, { displayTitle, lines: [] })
+      m.set(sortKey, { displayTitle, items: [] })
     }
-    m.get(sortKey)!.lines.push(
-      `${ln.name} × ${ln.qty} · €${ln.lineTotal.toFixed(2)} · ${ln.room} · ${ln.sectionPath}`,
-    )
+    m.get(sortKey)!.items.push(ln)
   }
   return [...m.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([sortKey, v]) => ({
       sortKey,
       displayTitle: v.displayTitle,
-      lines: v.lines.sort((x, y) => x.localeCompare(y)),
+      rows: bomLinesToPdfEquipmentTable(v.items, (ln) => {
+        const mfg = manufacturerLineForBomLine(p, ln).trim()
+        return [mfg || undefined, ln.room, ln.sectionPath].filter((x) => x?.trim()).join(' · ')
+      }),
     }))
 }

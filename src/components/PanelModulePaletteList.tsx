@@ -77,17 +77,6 @@ export function PanelModulePaletteList() {
                   }
                 />
               </label>
-              <label className="field" style={{ flex: 1, minWidth: 0 }}>
-                <span>Catalog</span>
-                <input
-                  value={m.catalogCode ?? ''}
-                  onChange={(e) =>
-                    updatePanelModuleTemplate(m.id, {
-                      catalogCode: e.target.value || undefined,
-                    })
-                  }
-                />
-              </label>
             </div>
             <div className="field-row" style={{ gap: 6 }}>
               <label className="field" style={{ flex: 1, minWidth: 0 }}>

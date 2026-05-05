@@ -576,7 +576,6 @@ export type ProjectStore = {
     partial: Partial<Pick<RackFrame, 'enclosureProductName' | 'enclosureUnitPrice'>>,
   ) => void
   addRackGear: () => void
-  addRackGearFromPalette: (paletteTemplateId: string) => void
   updateRackGear: (
     id: string,
     partial: Partial<
@@ -2073,7 +2072,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           connectorSubtype,
         ),
         manufacturerLine: partial?.manufacturerLine?.trim() || undefined,
-        catalogCode: partial?.catalogCode?.trim() || undefined,
         ...defaultBillableFields({
           productName,
           unitPrice: partial?.unitPrice,
@@ -2154,7 +2152,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             circuitRef: t.circuitRef,
             spanWidthTe: effW,
             manufacturerLine: t.manufacturerLine,
-            catalogCode: t.catalogCode,
             description: t.description,
             ratingA: t.ratingA,
             dinRailSegmentMm: t.dinRailSegmentMm,
@@ -2302,53 +2299,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             gear: [...s.project.rack.gear, { ...gear, ...c }],
           },
         }),
-      )
-    }),
-
-  addRackGearFromPalette: (paletteTemplateId) =>
-    set((s) => {
-      const tmpl = s.project.rackGearPalette.find((x) => x.id === paletteTemplateId)
-      if (!tmpl) return {}
-      const total = s.project.rack.totalRU
-      const heightRU = Math.max(1, Math.min(total, Math.floor(tmpl.heightRU) || 1))
-      const gearList = s.project.rack.gear
-      let startRU = findNextFreeRackStartRu(gearList, total, heightRU)
-      if (startRU === null) {
-        const maxStart = Math.max(1, total - heightRU + 1)
-        const raw = window.prompt(
-          `No free contiguous RU for ${heightRU}U. Enter bottom start RU (1–${maxStart}); may overlap existing gear:`,
-          '1',
-        )
-        if (raw === null) return {}
-        const parsed = Number.parseInt(raw.trim(), 10)
-        if (!Number.isFinite(parsed)) return {}
-        startRU = Math.max(1, Math.min(maxStart, parsed))
-      }
-      const newId = nanoid()
-      const gear = {
-        id: newId,
-        ...defaultBillableFields({
-          productName: tmpl.productName,
-          unitPrice: tmpl.unitPrice,
-          billCategory: tmpl.billCategory,
-        }),
-        startRU,
-        heightRU,
-        notes: '',
-        rj45PortCount: 0,
-        sfpPortCount: 0,
-      }
-      const c = clampRackGear(total, gear)
-      return projectMutation(
-        s,
-        touch({
-          ...s.project,
-          rack: {
-            ...s.project.rack,
-            gear: [...s.project.rack.gear, { ...gear, ...c }],
-          },
-        }),
-        { selectedRackGearId: newId },
       )
     }),
 

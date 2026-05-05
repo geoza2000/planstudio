@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { defaultBillableFields } from '../lib/billable'
-import { templatePalettePrimaryLine, templatePaletteSecondaryLine } from '../lib/deviceCatalog'
+import { templateListBomSubtitle, templateListDisplayTitle, templateListMetaLine } from '../lib/deviceCatalog'
 import { mergeRequirementsWithDeviceTypeDefaults } from '../lib/requirementDefaults'
 import { useProjectStore } from '../store/projectStore'
 import { KnxBusDeviceFields } from './KnxBusDeviceFields'
@@ -11,11 +11,7 @@ import type {
   DeviceTemplateMounting,
   DeviceType,
 } from '../types/project'
-import {
-  CONNECTOR_SUBTYPES,
-  deviceTypeRollupLabel,
-  DEVICE_TYPES,
-} from '../types/project'
+import { CONNECTOR_SUBTYPES, DEVICE_TYPES } from '../types/project'
 
 const MOUNTINGS: DeviceTemplateMounting[] = ['wall', 'ceiling', 'both']
 
@@ -31,7 +27,6 @@ function emptyDraft(): DeviceCatalogDraft {
     requirements: mergeRequirementsWithDeviceTypeDefaults(type, undefined, undefined),
     ...defaultBillableFields({ productName: '' }),
     manufacturerLine: undefined,
-    catalogCode: undefined,
   }
 }
 
@@ -57,7 +52,6 @@ function draftToStorePartial(d: DeviceCatalogDraft): Partial<Omit<DeviceTemplate
     productName: d.productName,
     unitPrice: d.unitPrice,
     manufacturerLine: d.manufacturerLine?.trim() || undefined,
-    catalogCode: d.catalogCode?.trim() || undefined,
   }
 }
 
@@ -176,13 +170,6 @@ function DeviceTemplateFields({
             onChange={(e) =>
               onPatch({ manufacturerLine: e.target.value || undefined })
             }
-          />
-        </label>
-        <label className="field" style={{ flex: 1, minWidth: 0 }}>
-          <span>Catalog code</span>
-          <input
-            value={value.catalogCode ?? ''}
-            onChange={(e) => onPatch({ catalogCode: e.target.value || undefined })}
           />
         </label>
       </div>
@@ -366,15 +353,18 @@ export function DeviceCatalogPanel() {
       ) : (
         <ul className="device-catalog-compact-list">
           {catalog.map((t) => {
-            const subtitle = templatePaletteSecondaryLine(t)
+            const bomLine = templateListBomSubtitle(t)
             return (
             <li key={t.id} className="device-catalog-compact-row">
               <div className="device-catalog-compact-main">
-                <span className="device-catalog-compact-name">{templatePalettePrimaryLine(t)}</span>
+                <span className="device-catalog-compact-name">{templateListDisplayTitle(t)}</span>
+                {bomLine ? (
+                  <span className="muted small" style={{ display: 'block', marginTop: 2 }}>
+                    {bomLine}
+                  </span>
+                ) : null}
                 <span className="muted small device-catalog-compact-meta">
-                  {deviceTypeRollupLabel(t.type, t.connectorSubtype)} · {t.mounting} · €
-                  {Number(t.unitPrice).toFixed(2)}
-                  {subtitle ? ` · ${subtitle}` : ''}
+                  {templateListMetaLine(t)}
                 </span>
               </div>
               <div className="device-catalog-compact-actions">

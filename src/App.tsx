@@ -17,14 +17,16 @@ import {
   stageToPngDataUrl,
 } from './lib/exporters'
 import { buildBom } from './lib/bom'
+import { pdfDeviceProductCell } from './lib/deviceCatalog'
 import { buildProjectPdfBlob, type ProjectPdfFloorPart } from './lib/projectPdfDocument'
 import { renderRoomIsolationPngDataUrl } from './lib/renderRoomPlanIsolation'
 import {
   aggregateShoppingLines,
-  buildPdfDeviceRows,
+  buildPanelEquipmentPriceTable,
+  buildPdfDeviceListEntries,
+  buildRackEquipmentPriceTable,
+  buildShoppingPriceTable,
   formatProjectMetaLines,
-  panelEquipmentRows,
-  rackEquipmentRows,
   shoppingGroupsByFloor,
   shoppingGroupsByManufacturer,
 } from './lib/projectPdfData'
@@ -60,7 +62,7 @@ import type {
   RackFrame,
   WallSheet,
 } from './types/project'
-import { CONNECTOR_SUBTYPES, DEVICE_TYPES, SCHEMA_VERSION, deviceHoverLabel } from './types/project'
+import { CONNECTOR_SUBTYPES, DEVICE_TYPES, SCHEMA_VERSION } from './types/project'
 import { listUnlinkedPlanWallDevices } from './lib/unlinkedDeviceMigration'
 import {
   segmentAngleDegFromPlusX,
@@ -510,7 +512,13 @@ function App() {
     }
     const ru = st.project.rack.totalRU
     const pixelRatio =
-      tab === 'rack' && ru > 32 ? 1 : tab === 'rack' && ru > 22 ? 1.5 : 2
+      tab === 'rack' && ru > 42
+        ? 1
+        : tab === 'rack' && ru > 32
+          ? 1
+          : tab === 'rack' && ru > 22
+            ? 1.5
+            : 2
     return {
       filename: name,
       dataUrl: stageToPngDataUrl(stage, { pixelRatio }),
@@ -588,14 +596,7 @@ function App() {
             await paint()
             await wait()
             const wcap = capturePngForTab('wall')
-            const deviceNames = ws.devices.map((d) =>
-              deviceHoverLabel({
-                label: d.label,
-                productName: d.productName,
-                type: d.type,
-                connectorSubtype: d.connectorSubtype,
-              }),
-            )
+            const deviceNames = ws.devices.map((d) => pdfDeviceProductCell(p, d))
             wallParts.push({
               wallLabel: ws.label,
               elevationDataUrl: wcap?.dataUrl ?? '',
@@ -623,14 +624,7 @@ function App() {
             await paint()
             await wait()
             const wcap = capturePngForTab('wall')
-            const deviceNames = ws.devices.map((d) =>
-              deviceHoverLabel({
-                label: d.label,
-                productName: d.productName,
-                type: d.type,
-                connectorSubtype: d.connectorSubtype,
-              }),
-            )
+            const deviceNames = ws.devices.map((d) => pdfDeviceProductCell(p, d))
             wallParts.push({
               wallLabel: ws.label,
               elevationDataUrl: wcap?.dataUrl ?? '',
@@ -670,21 +664,22 @@ function App() {
         metaLines,
         overviewFloorImages,
         perFloor,
-        deviceRows: buildPdfDeviceRows(pFinal),
+        deviceListEntries: buildPdfDeviceListEntries(pFinal),
         panelDiagramDataUrl: panelCap?.dataUrl ?? '',
-        panelEquipment: panelEquipmentRows(pFinal),
-        panelShopping: aggregateShoppingLines(
-          pFinal,
-          built.lines.filter((l) => l.source === 'panel'),
+        panelEquipment: buildPanelEquipmentPriceTable(pFinal),
+        panelShopping: buildShoppingPriceTable(
+          aggregateShoppingLines(pFinal, built.lines.filter((l) => l.source === 'panel')),
         ),
         rackDiagramDataUrl: rackCap?.dataUrl ?? '',
-        rackEquipment: rackEquipmentRows(pFinal),
-        rackShopping: aggregateShoppingLines(
-          pFinal,
-          built.lines.filter((l) => l.source === 'rack' || l.source === 'rack_enclosure'),
+        rackEquipment: buildRackEquipmentPriceTable(pFinal),
+        rackShopping: buildShoppingPriceTable(
+          aggregateShoppingLines(
+            pFinal,
+            built.lines.filter((l) => l.source === 'rack' || l.source === 'rack_enclosure'),
+          ),
         ),
         shoppingByManufacturer: shoppingGroupsByManufacturer(pFinal, built.lines),
-        shoppingByFloor: shoppingGroupsByFloor(built.lines),
+        shoppingByFloor: shoppingGroupsByFloor(pFinal, built.lines),
       })
 
       downloadBlob(`${slug(pFinal.name)}.pdf`, blob)
@@ -2112,18 +2107,6 @@ function App() {
                 </select>
               </label>
               <label className="field">
-                <span>Catalog / article code</span>
-                <input
-                  value={selectedPanelAnchor.catalogCode ?? ''}
-                  placeholder="e.g. N4031"
-                  onChange={(e) =>
-                    updatePanelSlot(selectedPanelAnchor.id, {
-                      catalogCode: e.target.value || undefined,
-                    })
-                  }
-                />
-              </label>
-              <label className="field">
                 <span>Description</span>
                 <input
                   value={selectedPanelAnchor.description ?? ''}
@@ -2286,10 +2269,8 @@ function App() {
                     <p className="muted small" title={DIN_SCALE_TOOLTIP}>
                       True-scale DIN grid (17.5 mm/TE horizontal, 90 mm/row vertical). Click a cell
                       to cycle its module type. Multi-TE width cannot cover cells already used by
-                      another device (or non-blank); span changes clamp to free space. Enter a
-                      catalog code in the sidebar when a module is selected — it appears on the
-                      canvas. Drag a palette row below onto a cell to drop a new module from your
-                      template list.
+                      another device (or non-blank); span changes clamp to free space. Drag a
+                      palette row below onto a cell to drop a new module from your template list.
                     </p>
                     <div className="field-row">
                       <label className="field">

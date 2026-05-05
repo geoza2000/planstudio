@@ -5,7 +5,7 @@ import {
   defaultPanelProductName,
 } from '../lib/billable'
 import { reconcilePanelSpans } from '../lib/panelSpans'
-import type { FloorLevel, KnxLine, PanelSlot, PlanstudioProject, RackGearPaletteTemplate } from '../types/project'
+import type { FloorLevel, KnxLine, PanelSlot, PlanstudioProject } from '../types/project'
 import { SCHEMA_VERSION } from '../types/project'
 
 export function emptyPanelSlot(row: number, col: number): PanelSlot {
@@ -44,35 +44,6 @@ function emptyPlan(label: string, widthM: number, depthM: number) {
     regions: [] as FloorLevel['plan']['regions'],
   }
 }
-
-/** Built-in rack catalog presets (stable ids for JSON); merged on load when `rackGearPalette` is absent. */
-export const DEFAULT_RACK_GEAR_PALETTE: RackGearPaletteTemplate[] = [
-  {
-    id: 'rp-patch24',
-    ...defaultBillableFields({ productName: 'Patch panel 24-port CAT6' }),
-    heightRU: 1,
-  },
-  {
-    id: 'rp-patch48',
-    ...defaultBillableFields({ productName: 'Patch panel 48-port fiber' }),
-    heightRU: 2,
-  },
-  {
-    id: 'rp-switch1u',
-    ...defaultBillableFields({ productName: 'Managed PoE switch 24p' }),
-    heightRU: 1,
-  },
-  {
-    id: 'rp-ups2u',
-    ...defaultBillableFields({ productName: 'Line-interactive UPS' }),
-    heightRU: 2,
-  },
-  {
-    id: 'rp-blank1u',
-    ...defaultBillableFields({ productName: 'Blank panel 1U' }),
-    heightRU: 1,
-  },
-]
 
 /** Default KNX / bus line names (ids stable for JSON); user may rename or add lines on the Panel tab. */
 export const DEFAULT_KNX_LINES: KnxLine[] = [
@@ -141,6 +112,5 @@ export function createInitialProject(): PlanstudioProject {
       wallOrtho: true,
     },
     deviceCatalog: [],
-    rackGearPalette: DEFAULT_RACK_GEAR_PALETTE.map((row) => ({ ...row })),
   }
 }

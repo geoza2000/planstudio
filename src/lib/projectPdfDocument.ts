@@ -1,5 +1,10 @@
 import { jsPDF } from 'jspdf'
-import type { ShoppingFloorGroup, ShoppingManufacturerGroup } from './projectPdfData'
+import type {
+  PdfDeviceListEntry,
+  PdfEquipmentPriceRow,
+  ShoppingFloorGroup,
+  ShoppingManufacturerGroup,
+} from './projectPdfData'
 
 const M = 40
 
@@ -22,27 +27,19 @@ export type ProjectPdfFloorPart = {
   rooms: ProjectPdfRoomPart[]
 }
 
-export type ShoppingRow = {
-  name: string
-  qty: number
-  unitPrice: number
-  lineTotal: number
-  manufacturer: string
-}
-
 export type ProjectPdfInput = {
   projectName: string
   generatedAtISO: string
   metaLines: string[]
   overviewFloorImages: { floorLabel: string; dataUrl: string }[]
   perFloor: ProjectPdfFloorPart[]
-  deviceRows: string[][]
+  deviceListEntries: PdfDeviceListEntry[]
   panelDiagramDataUrl: string
-  panelEquipment: string[][]
-  panelShopping: ShoppingRow[]
+  panelEquipment: PdfEquipmentPriceRow[]
+  panelShopping: PdfEquipmentPriceRow[]
   rackDiagramDataUrl: string
-  rackEquipment: string[][]
-  rackShopping: ShoppingRow[]
+  rackEquipment: PdfEquipmentPriceRow[]
+  rackShopping: PdfEquipmentPriceRow[]
   shoppingByManufacturer: ShoppingManufacturerGroup[]
   shoppingByFloor: ShoppingFloorGroup[]
 }
@@ -127,23 +124,34 @@ function addImageFitWidth(pdf: jsPDF, y: number, dataUrl: string): number {
   return addImageFitMaxBox(pdf, y, dataUrl, maxW, Math.max(120, maxH))
 }
 
-function drawTable(pdf: jsPDF, y: number, rows: string[][]): number {
+function drawDeviceListEntries(pdf: jsPDF, y: number, entries: PdfDeviceListEntry[]): number {
   const { w, h } = pageSize(pdf)
   const textW = w - 2 * M
-  pdf.setFontSize(8)
-  pdf.setFont('helvetica', 'normal')
-  for (const row of rows) {
-    const t = row.map((c) => String(c).replace(/\n/g, ' ')).join('  ·  ')
-    const parts = pdf.splitTextToSize(t, textW)
-    const blockH = parts.length * 9
-    if (y + blockH > h - M) {
-      pdf.addPage()
-      y = M
+  const lineH = 9
+  for (const e of entries) {
+    const segments: { text: string; bold: boolean; size: number }[] = [
+      { text: e.context, bold: true, size: 8 },
+      { text: e.displayTitle, bold: true, size: 9 },
+    ]
+    if (e.bom) segments.push({ text: e.bom, bold: false, size: 8 })
+    segments.push({ text: e.meta, bold: false, size: 8 })
+    if (e.tail) segments.push({ text: e.tail, bold: false, size: 8 })
+
+    for (const seg of segments) {
+      pdf.setFontSize(seg.size)
+      pdf.setFont('helvetica', seg.bold ? 'bold' : 'normal')
+      const parts = pdf.splitTextToSize(seg.text, textW)
+      const blockH = parts.length * lineH
+      if (y + blockH > h - M) {
+        pdf.addPage()
+        y = M
+      }
+      pdf.text(parts, M, y)
+      y += blockH + 1
     }
-    pdf.text(parts, M, y)
-    y += blockH + 3
+    y += 8
   }
-  return y + 8
+  return y + 4
 }
 
 function addImageFitMaxBox(
@@ -225,20 +233,22 @@ function addWallElevationGrid(
       }
 
       if (wall.deviceNames.length > 0) {
+        pdf.setFontSize(8)
         pdf.setFont('helvetica', 'normal')
-        const cap = wall.deviceNames.slice(0, 3).join(' · ')
-        const more = wall.deviceNames.length > 3 ? '…' : ''
-        const parts = pdf.splitTextToSize(`${cap}${more}`, cellW)
-        const capH = parts.length * 8
+        const lineH = 8
         const maxBottom = h - M - 4
-        if (cellY + capH > maxBottom) {
-          const keep = Math.max(1, Math.floor((maxBottom - cellY) / 8))
-          const parts2 = parts.slice(0, keep)
-          pdf.text(parts2, x, cellY)
-          cellY += parts2.length * 8 + 2
-        } else {
+        for (const name of wall.deviceNames) {
+          const raw = String(name).replace(/\r\n/g, '\n')
+          const parts = pdf.splitTextToSize(raw, cellW)
+          const blockH = parts.length * lineH
+          if (cellY + blockH > maxBottom) {
+            const ell = pdf.splitTextToSize('…', cellW)
+            pdf.text(ell, x, cellY)
+            cellY += ell.length * lineH + 2
+            break
+          }
           pdf.text(parts, x, cellY)
-          cellY += capH + 2
+          cellY += blockH + 3
         }
       }
 
@@ -249,24 +259,89 @@ function addWallElevationGrid(
   return y
 }
 
-function drawShoppingAggregates(pdf: jsPDF, y: number, items: ShoppingRow[]): number {
-  pdf.setFontSize(9)
-  pdf.setFont('helvetica', 'normal')
+function fmtEuro(n: number): string {
+  return `€${n.toFixed(2)}`
+}
+
+/** Price table: equipment (name + optional note), qty, unit, line total; last row may be total. */
+function drawEquipmentPriceTable(
+  pdf: jsPDF,
+  startY: number,
+  rows: PdfEquipmentPriceRow[],
+  emptyMessage: string,
+): number {
   const { w, h } = pageSize(pdf)
-  const textW = w - 2 * M
-  for (const it of items) {
-    const man = it.manufacturer ? `${it.manufacturer} · ` : ''
-    const line = `${man}${it.name} × ${it.qty} · unit €${it.unitPrice.toFixed(2)} · total €${it.lineTotal.toFixed(2)}`
-    const parts = pdf.splitTextToSize(line, textW)
-    const blockH = parts.length * 11
-    if (y + blockH > h - M) {
+  const tableW = w - 2 * M
+  if (rows.length === 0) {
+    return drawBodyLines(pdf, startY, [emptyMessage])
+  }
+
+  const colGap = 10
+  const wQty = 32
+  const wUnit = 56
+  const wTot = 60
+  const wName = Math.max(120, tableW - wQty - wUnit - wTot - 3 * colGap)
+  const xName = M
+  const xQty = xName + wName + colGap
+  const xUnit = xQty + wQty + colGap
+  const xTot = xUnit + wUnit + colGap
+  const lineH = 9
+  let y = startY
+
+  const drawHeaderRow = () => {
+    pdf.setFontSize(9)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('Equipment', xName, y)
+    pdf.text('Qty', xQty + wQty, y, { align: 'right' })
+    pdf.text('Unit €', xUnit + wUnit, y, { align: 'right' })
+    pdf.text('Total €', xTot + wTot, y, { align: 'right' })
+    y += lineH + 2
+    pdf.setDrawColor(190)
+    pdf.setLineWidth(0.35)
+    pdf.line(M, y, M + tableW, y)
+    y += 6
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(8)
+  }
+
+  drawHeaderRow()
+
+  for (const row of rows) {
+    if (row.isTotal) {
+      pdf.setDrawColor(190)
+      pdf.line(M, y - 2, M + tableW, y - 2)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(9)
+      pdf.text(row.name, xName, y)
+      pdf.text(row.qty > 0 ? String(row.qty) : '', xQty + wQty, y, { align: 'right' })
+      pdf.text(row.unitPrice > 0 ? fmtEuro(row.unitPrice) : '', xUnit + wUnit, y, { align: 'right' })
+      pdf.text(fmtEuro(row.lineTotal), xTot + wTot, y, { align: 'right' })
+      pdf.setFont('helvetica', 'normal')
+      y += lineH + 10
+      continue
+    }
+
+    const nameBlock = row.note ? `${row.name}\n${row.note}` : row.name
+    const nameParts = pdf.splitTextToSize(nameBlock, wName)
+    const nameH = nameParts.length * lineH
+    const rowH = Math.max(nameH, lineH)
+
+    if (y + rowH + 24 > h - M) {
       pdf.addPage()
       y = M
+      drawHeaderRow()
     }
-    pdf.text(parts, M, y)
-    y += blockH + 2
+
+    pdf.setFontSize(8)
+    pdf.setFont('helvetica', 'normal')
+    pdf.text(nameParts, xName, y)
+    pdf.text(String(row.qty), xQty + wQty, y, { align: 'right' })
+    pdf.text(fmtEuro(row.unitPrice), xUnit + wUnit, y, { align: 'right' })
+    pdf.text(fmtEuro(row.lineTotal), xTot + wTot, y, { align: 'right' })
+    y += rowH + 4
   }
-  return y + 8
+
+  return y + 4
 }
 
 /** Assembles the full multi-section project PDF from pre-captured PNG data URLs and tables. */
@@ -318,8 +393,12 @@ export function buildProjectPdfBlob(input: ProjectPdfInput): Blob {
 
   pdf.addPage()
   y = M
-  y = drawHeading(pdf, y, 'Device list')
-  y = drawTable(pdf, y, input.deviceRows)
+  y = drawHeading(pdf, y, 'Device catalog (templates)')
+  if (input.deviceListEntries.length === 0) {
+    y = drawBodyLines(pdf, y, ['(no rows in deviceCatalog — add templates on the Devices tab.)'])
+  } else {
+    y = drawDeviceListEntries(pdf, y, input.deviceListEntries)
+  }
 
   pdf.addPage()
   y = M
@@ -327,9 +406,9 @@ export function buildProjectPdfBlob(input: ProjectPdfInput): Blob {
   y = drawSubheading(pdf, y, 'Panel diagram')
   y = addImageFitWidth(pdf, y, input.panelDiagramDataUrl)
   y = drawSubheading(pdf, y, 'Panel equipment')
-  y = drawTable(pdf, y, input.panelEquipment)
+  y = drawEquipmentPriceTable(pdf, y, input.panelEquipment, '(no modules on the panel grid.)')
   y = drawSubheading(pdf, y, 'Panel shopping list')
-  y = drawShoppingAggregates(pdf, y, input.panelShopping)
+  y = drawEquipmentPriceTable(pdf, y, input.panelShopping, '(no panel BOM lines.)')
 
   pdf.addPage()
   y = M
@@ -337,24 +416,42 @@ export function buildProjectPdfBlob(input: ProjectPdfInput): Blob {
   y = drawSubheading(pdf, y, 'Rack diagram')
   y = addImageFitWidth(pdf, y, input.rackDiagramDataUrl)
   y = drawSubheading(pdf, y, 'Rack equipment')
-  y = drawTable(pdf, y, input.rackEquipment)
+  y = drawEquipmentPriceTable(pdf, y, input.rackEquipment, '(no rack gear.)')
   y = drawSubheading(pdf, y, 'Rack shopping list')
-  y = drawShoppingAggregates(pdf, y, input.rackShopping)
+  y = drawEquipmentPriceTable(pdf, y, input.rackShopping, '(no rack BOM lines.)')
 
   pdf.addPage()
   y = M
   y = drawHeading(pdf, y, 'Shopping list by manufacturer (floor & wall)')
-  for (const grp of input.shoppingByManufacturer) {
-    y = drawSubheading(pdf, y, grp.displayTitle)
-    y = drawBodyLines(pdf, y, grp.lines)
+  if (input.shoppingByManufacturer.length === 0) {
+    y = drawBodyLines(pdf, y, ['(no floor or wall shopping lines.)'])
+  } else {
+    for (const grp of input.shoppingByManufacturer) {
+      y = drawSubheading(pdf, y, grp.displayTitle)
+      y = drawEquipmentPriceTable(
+        pdf,
+        y,
+        grp.rows,
+        '(no lines in this manufacturer group.)',
+      )
+    }
   }
 
   pdf.addPage()
   y = M
   y = drawHeading(pdf, y, 'Shopping list by floor (floor & wall)')
-  for (const grp of input.shoppingByFloor) {
-    y = drawSubheading(pdf, y, grp.displayTitle)
-    y = drawBodyLines(pdf, y, grp.lines)
+  if (input.shoppingByFloor.length === 0) {
+    y = drawBodyLines(pdf, y, ['(no floor or wall shopping lines with a floor label.)'])
+  } else {
+    for (const grp of input.shoppingByFloor) {
+      y = drawSubheading(pdf, y, grp.displayTitle)
+      y = drawEquipmentPriceTable(
+        pdf,
+        y,
+        grp.rows,
+        '(no lines in this floor group.)',
+      )
+    }
   }
 
   return pdf.output('blob')

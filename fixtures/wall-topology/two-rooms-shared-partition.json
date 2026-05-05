@@ -783,42 +783,5 @@
     "snapGridM": 0.1,
     "wallOrtho": true
   },
-  "deviceCatalog": [],
-  "rackGearPalette": [
-    {
-      "id": "rp-patch24",
-      "productName": "Patch panel 24-port CAT6",
-      "unitPrice": 0,
-      "billCategory": "standard",
-      "heightRU": 1
-    },
-    {
-      "id": "rp-patch48",
-      "productName": "Patch panel 48-port fiber",
-      "unitPrice": 0,
-      "billCategory": "standard",
-      "heightRU": 2
-    },
-    {
-      "id": "rp-switch1u",
-      "productName": "Managed PoE switch 24p",
-      "unitPrice": 0,
-      "billCategory": "standard",
-      "heightRU": 1
-    },
-    {
-      "id": "rp-ups2u",
-      "productName": "Line-interactive UPS",
-      "unitPrice": 0,
-      "billCategory": "standard",
-      "heightRU": 2
-    },
-    {
-      "id": "rp-blank1u",
-      "productName": "Blank panel 1U",
-      "unitPrice": 0,
-      "billCategory": "standard",
-      "heightRU": 1
-    }
-  ]
+  "deviceCatalog": []
 }

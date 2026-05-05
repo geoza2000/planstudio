@@ -1,7 +1,7 @@
 /** Current persisted project schema. v14: auto-rooms from wall cycles; per-room wall faces with shared openings. */
 export const SCHEMA_VERSION = 14 as const
 /** Oldest `schemaVersion` this build loads (inclusive). */
-export const MIN_SUPPORTED_SCHEMA_VERSION = 10 as const
+export const MIN_SUPPORTED_SCHEMA_VERSION = 13 as const
 
 export type FloorDeviceMounting = 'floor' | 'ceiling' | 'wall'
 
@@ -278,8 +278,6 @@ export interface PanelSlot extends BillableProduct {
   /** If set, this grid cell is covered by the anchor slot to the left (same row). */
   spanAnchorId?: Id
   manufacturerLine?: string
-  /** Manufacturer catalog or article code */
-  catalogCode?: string
   description?: string
   /** Optional dedicated DIN rail segment length (mm) */
   dinRailSegmentMm?: number
@@ -298,7 +296,6 @@ export type PanelModuleTemplate = Pick<
   | 'label'
   | 'moduleType'
   | 'manufacturerLine'
-  | 'catalogCode'
   | 'description'
   | 'ratingA'
   | 'dinRailSegmentMm'
@@ -337,7 +334,6 @@ export interface DeviceTemplate extends BillableProduct {
   mounting: DeviceTemplateMounting
   requirements?: DeviceRequirements
   manufacturerLine?: string
-  catalogCode?: string
 }
 
 export type RackPortKind = 'rj45' | 'sfp'
@@ -366,13 +362,6 @@ export interface RackGear extends BillableProduct {
   rj45PortCount?: number
   /** Count of SFP-style ports shown on the elevation; default 0 when omitted in JSON. */
   sfpPortCount?: number
-}
-
-/** Preset rack modules for “Add from catalog” (project-level, like `deviceCatalog`). */
-export interface RackGearPaletteTemplate extends BillableProduct {
-  id: Id
-  /** Default vertical size when placing from the palette. */
-  heightRU: number
 }
 
 /**
@@ -416,8 +405,6 @@ export interface PlanstudioProject {
   editorSettings: EditorSettings
   /** Reusable device definitions for drag-from-palette placement on plan and wall. */
   deviceCatalog: DeviceTemplate[]
-  /** Preset rack gear lines (names + default U height) for the rack elevation catalog picker. */
-  rackGearPalette: RackGearPaletteTemplate[]
 }
 
 export type EditorTab = 'floor' | 'wall' | 'panel' | 'rack' | 'devices'

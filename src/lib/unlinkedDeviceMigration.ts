@@ -348,7 +348,6 @@ export function buildDeviceTemplateFromFloorInstance(d: FloorDevice): Omit<Devic
     ...(type === 'connector' ? { connectorSubtype } : {}),
     requirements: d.requirements,
     manufacturerLine: undefined,
-    catalogCode: undefined,
     ...bill,
     billCategory: d.billCategory,
   }
@@ -374,7 +373,6 @@ export function buildDeviceTemplateFromWallInstance(
     ...(type === 'connector' ? { connectorSubtype } : {}),
     requirements: w.requirements,
     manufacturerLine: undefined,
-    catalogCode: undefined,
     ...bill,
     billCategory: w.billCategory,
   }

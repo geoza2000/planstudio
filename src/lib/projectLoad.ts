@@ -15,7 +15,6 @@ import type {
   PlanstudioProject,
   RackFrame,
   RackGear,
-  RackGearPaletteTemplate,
   RackPatchPanelLink,
   WallMountDevice,
 } from '../types/project'
@@ -27,94 +26,39 @@ import {
 } from '../types/project'
 import type { RackPortEndpoint, RackPortLink } from '../types/project'
 import { nanoid } from 'nanoid'
-import { DEFAULT_RACK_GEAR_PALETTE, DEFAULT_KNX_LINES } from '../model/defaults'
+import { DEFAULT_KNX_LINES } from '../model/defaults'
 import { normalizeRackPortCount, pruneInvalidPortLinks } from './rackPortLinks'
 
 type LooseRecord = Record<string, unknown>
 
 const DEVICE_TYPE_SET = new Set<string>(DEVICE_TYPES)
 
-/**
- * Legacy persisted `kind` (≤ v10) → v11 `type` (+ optional `connectorSubtype` when `type === 'connector'`):
- *
- * | Legacy `kind` | `type`               | Notes |
- * |---------------|----------------------|-------|
- * | socket        | outlet               | |
- * | switch        | switch               | Wall / circuit switch |
- * | light         | light                | |
- * | ap            | access_point         | |
- * | camera        | camera               | Any casing (`Camera`, …) normalizes to `camera` |
- * | reader        | access_reader        | |
- * | generic       | generic_eth_device   | Ambiguous catch-all → data / ETH-style default |
- *
- * If JSON already has a valid v11 `type`, it wins over `kind`. Unknown values → `generic_eth_device`.
- */
-function migrateDeviceTypeFields(loose: LooseRecord): {
+/** Schema v13+ projects must persist `type` (no legacy `kind`). */
+function parseDeviceTypeStrict(loose: LooseRecord): {
   type: DeviceType
   connectorSubtype?: ConnectorSubtype
 } {
   const rawNew = loose.type
-  if (typeof rawNew === 'string' && DEVICE_TYPE_SET.has(rawNew)) {
-    const type = rawNew as DeviceType
-    if (type === 'connector') {
-      const cs = loose.connectorSubtype
-      const connectorSubtype: ConnectorSubtype =
-        cs === 'fiber' || cs === 'ethernet' ? cs : 'ethernet'
-      return { type, connectorSubtype }
-    }
-    return { type }
+  if (typeof rawNew !== 'string' || !DEVICE_TYPE_SET.has(rawNew)) {
+    throw new Error(
+      'Invalid project: device or device template row has missing or unsupported type (schema v13+).',
+    )
   }
-
-  const legacy =
-    typeof loose.kind === 'string' ? loose.kind.trim().toLowerCase() : ''
-
-  switch (legacy) {
-    case 'socket':
-      return { type: 'outlet' }
-    case 'switch':
-      return { type: 'switch' }
-    case 'light':
-      return { type: 'light' }
-    case 'ap':
-      return { type: 'access_point' }
-    case 'camera':
-      return { type: 'camera' }
-    case 'reader':
-      return { type: 'access_reader' }
-    case 'generic':
-      return { type: 'generic_eth_device' }
-    default:
-      break
+  const type = rawNew as DeviceType
+  if (type === 'connector') {
+    const cs = loose.connectorSubtype
+    const connectorSubtype: ConnectorSubtype =
+      cs === 'fiber' || cs === 'ethernet' ? cs : 'ethernet'
+    return { type, connectorSubtype }
   }
-
-  if (typeof loose.kind === 'string' && loose.kind.trim().toLowerCase() === 'camera') {
-    return { type: 'camera' }
-  }
-
-  return { type: 'generic_eth_device' }
+  return { type }
 }
 
-/** Legacy `DeviceTemplate.description` folded into `requirements.notes` on load. */
-function mergeLegacyDeviceTemplateDescriptionToNotes(
-  requirements: DeviceRequirements | undefined,
-  legacyDescription: unknown,
-): DeviceRequirements | undefined {
-  const desc =
-    typeof legacyDescription === 'string' && legacyDescription.trim() !== ''
-      ? legacyDescription.trim()
-      : undefined
-  if (!desc) return requirements
-  const base = requirements ? { ...requirements } : {}
-  const existing = typeof base.notes === 'string' ? base.notes.trim() : ''
-  const notes = existing ? `${existing}\n\n${desc}` : desc
-  return { ...base, notes }
-}
-
-function applyDeviceTypeMigration<T extends FloorDevice | WallMountDevice | DeviceTemplate>(
+function normalizeDeviceTypeRecord<T extends FloorDevice | WallMountDevice | DeviceTemplate>(
   row: T | LooseRecord,
 ): T {
   const loose = row as LooseRecord
-  const { type, connectorSubtype } = migrateDeviceTypeFields(loose)
+  const { type, connectorSubtype } = parseDeviceTypeStrict(loose)
   const copy: LooseRecord = { ...(row as LooseRecord) }
   delete copy.kind
   copy.type = type
@@ -251,7 +195,7 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
   const deviceCatalog: DeviceTemplate[] = Array.isArray(rawCatalog)
     ? (rawCatalog as LooseRecord[])
         .map((r) => {
-          const migrated = applyDeviceTypeMigration(
+          const migrated = normalizeDeviceTypeRecord(
             r as unknown as DeviceTemplate,
           ) as unknown as LooseRecord
           const id = typeof migrated.id === 'string' ? migrated.id : ''
@@ -273,10 +217,7 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
             unitPrice: typeof r.unitPrice === 'number' ? r.unitPrice : 0,
           })
           const requirements = migrateDeviceRequirements(
-            mergeLegacyDeviceTemplateDescriptionToNotes(
-              (r.requirements ?? undefined) as DeviceRequirements | undefined,
-              r.description,
-            ),
+            (r.requirements ?? undefined) as DeviceRequirements | undefined,
           )
           const next: DeviceTemplate = {
             id,
@@ -291,7 +232,6 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
             requirements,
             manufacturerLine:
               typeof r.manufacturerLine === 'string' ? r.manufacturerLine : undefined,
-            catalogCode: typeof r.catalogCode === 'string' ? r.catalogCode : undefined,
             ...bill,
           }
           return next
@@ -313,7 +253,7 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
         }))
       })(),
       devices: fl.plan.devices.map((d) => {
-        const migrated = applyDeviceTypeMigration(d as unknown as LooseRecord) as FloorDevice
+        const migrated = normalizeDeviceTypeRecord(d as unknown as LooseRecord) as FloorDevice
         const l = migrated as unknown as {
           productName?: string
           unitPrice?: number
@@ -357,7 +297,7 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
       ...w,
       openings: w.openings ?? [],
       devices: w.devices.map((d) => {
-        const migrated = applyDeviceTypeMigration(d as unknown as LooseRecord) as WallMountDevice
+        const migrated = normalizeDeviceTypeRecord(d as unknown as LooseRecord) as WallMountDevice
         const l = migrated as unknown as {
           productName?: string
           unitPrice?: number
@@ -444,37 +384,6 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
         .filter((x) => x.deviceId.length > 0)
     : []
 
-  const rawRgPalette = (p as unknown as LooseRecord).rackGearPalette
-  const rackGearPalette: RackGearPaletteTemplate[] = !Array.isArray(rawRgPalette)
-    ? DEFAULT_RACK_GEAR_PALETTE.map((row) => ({ ...row }))
-    : (rawRgPalette as LooseRecord[])
-        .filter((x): x is LooseRecord => isRecord(x))
-        .map((row) => {
-          const id = typeof row.id === 'string' ? row.id : ''
-          const productName =
-            typeof row.productName === 'string' && row.productName.trim() !== ''
-              ? row.productName.trim()
-              : 'Rack item'
-          const heightRaw = row.heightRU
-          const heightRU =
-            typeof heightRaw === 'number' &&
-            Number.isFinite(heightRaw) &&
-            heightRaw >= 1 &&
-            heightRaw <= 48
-              ? Math.floor(heightRaw)
-              : 1
-          const unitPrice =
-            typeof row.unitPrice === 'number' && !Number.isNaN(row.unitPrice)
-              ? row.unitPrice
-              : 0
-          return {
-            id,
-            ...defaultBillableFields({ productName, unitPrice }),
-            heightRU,
-          }
-        })
-        .filter((t) => t.id.length > 0)
-
   const rawPortLinks = (p.rack as { portLinks?: unknown }).portLinks
   let portLinks = parsePortLinks(rawPortLinks)
 
@@ -518,13 +427,12 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
     rack,
     editorSettings,
     deviceCatalog,
-    rackGearPalette,
   }
 }
 
 /**
  * Parse loaded JSON into a current-schema project, or throw with a clear message.
- * Accepts schema v10 through the current `SCHEMA_VERSION` (normalized to current shape, e.g. rack `portLinks`).
+ * Accepts schema v13 through the current `SCHEMA_VERSION` (normalized to current shape, e.g. rack `portLinks`).
  */
 export function normalizeProject(raw: unknown): PlanstudioProject {
   if (!isRecord(raw)) {
