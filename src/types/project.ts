@@ -1,5 +1,5 @@
-/** Current persisted project schema. v13: KNX bus lines + channel roles (replaces Bticino actuator flag); motion_sensor device type. */
-export const SCHEMA_VERSION = 13 as const
+/** Current persisted project schema. v14: auto-rooms from wall cycles; per-room wall faces with shared openings. */
+export const SCHEMA_VERSION = 14 as const
 /** Oldest `schemaVersion` this build loads (inclusive). */
 export const MIN_SUPPORTED_SCHEMA_VERSION = 10 as const
 
@@ -163,6 +163,17 @@ export interface PlanRegion {
   label: string
   /** Closed polygon in meters (≥ 3 vertices, first != last in storage) */
   vertices: PointM[]
+  /**
+   * When set, this region is auto-derived from a closed cycle of plan wall segments.
+   * Sorted, joined ids of the bounding wall segments. Used to match regions across
+   * topology recomputes so user labels survive wall edits.
+   */
+  wallCycleSignature?: string
+  /**
+   * When set, this auto-room lies inside another room’s polygon (e.g. alcove). Derived
+   * on each topology reconcile from geometry; not user-edited.
+   */
+  parentRegionId?: Id
 }
 
 export interface FloorPlan {
@@ -202,6 +213,11 @@ export interface WallOpening {
   widthM: number
   heightM: number
   label?: string
+  /**
+   * Plan-linked grouped walls: opening center on the parent segment as fraction from `a`
+   * (0) to `b` (1). Keeps one physical door aligned on every room face when chord lengths differ.
+   */
+  planAlongSeg01?: number
 }
 
 export interface WallSheet {
@@ -215,8 +231,30 @@ export interface WallSheet {
   openings: WallOpening[]
   /** When set, this elevation is tied 1:1 to a `plan.wallSegments` entry (same floor). */
   wallSegmentId?: Id
-  /** Optional: assign wall strip to a room / patio for BOM grouping & summary */
+  /**
+   * Which room this wall *face* belongs to. A physical wall between two rooms produces
+   * two sheets sharing a `wallSegmentId` but with different `roomRegionId`s — each is an
+   * independently editable face (devices). Openings sync across faces only when
+   * `openingsGroupId` matches (see topology reconcile for paired vs split groups).
+   * Unset → orphan sheet (wall not on any room boundary, or no rooms detected yet).
+   */
   roomRegionId?: Id
+  /**
+   * Which face of the directed segment this sheet describes ('a' = left of a→b, 'b' = right).
+   * Used by the renderer to offset paired faces and to reconcile sheets after geometry edits.
+   */
+  wallFace?: 'a' | 'b'
+  /**
+   * Stable id for syncing a `WallOpening` across **paired opposite faces** of one wall
+   * (exactly one `a` and one `b` sheet on the segment). On T-junctions / several chords
+   * per segment, each sheet gets its own group; see `reconcileFloorWallTopology`.
+   */
+  openingsGroupId?: Id
+  /**
+   * This sheet’s plan wall is the `[t0,t1]` sub-interval of the parent segment (0 = `a`, 1 = `b`).
+   * `lengthM` is the chord length for that span.
+   */
+  planSpanAlongSegment01?: { t0: number; t1: number }
 }
 
 export interface FloorLevel {

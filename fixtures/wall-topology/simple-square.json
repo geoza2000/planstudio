@@ -1,0 +1,813 @@
+{
+  "schemaVersion": 14,
+  "name": "Fixture: simple square",
+  "updatedAt": "2026-05-05T13:19:30.547Z",
+  "floors": [
+    {
+      "id": "5SifDZbNt6qfP3bVYZS_B",
+      "label": "Test floor",
+      "sortOrder": 0,
+      "plan": {
+        "label": "Plan",
+        "widthM": 8,
+        "depthM": 6,
+        "wallSegments": [
+          {
+            "id": "w-bottom",
+            "a": {
+              "x": 0,
+              "y": 0
+            },
+            "b": {
+              "x": 4,
+              "y": 0
+            }
+          },
+          {
+            "id": "w-right",
+            "a": {
+              "x": 4,
+              "y": 0
+            },
+            "b": {
+              "x": 4,
+              "y": 3
+            }
+          },
+          {
+            "id": "w-top",
+            "a": {
+              "x": 4,
+              "y": 3
+            },
+            "b": {
+              "x": 0,
+              "y": 3
+            }
+          },
+          {
+            "id": "w-left",
+            "a": {
+              "x": 0,
+              "y": 3
+            },
+            "b": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ],
+        "devices": [],
+        "regions": []
+      },
+      "wallSheets": []
+    }
+  ],
+  "knxLines": [
+    {
+      "id": "knx-line-ground",
+      "label": "Ground floor apartment",
+      "sortOrder": 0
+    },
+    {
+      "id": "knx-line-first",
+      "label": "First floor apartment",
+      "sortOrder": 1
+    },
+    {
+      "id": "knx-line-common",
+      "label": "Common areas",
+      "sortOrder": 2
+    }
+  ],
+  "panel": {
+    "rows": 3,
+    "widthTe": 18,
+    "slots": [
+      {
+        "id": "n1ZUC8hY8Wd0Altad0ECQ",
+        "row": 0,
+        "col": 0,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C1",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "2zWEIbXce-HckIxKtcxoZ",
+        "row": 0,
+        "col": 1,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C2",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "JPYpBHIhlQmIDf1vB9ukk",
+        "row": 0,
+        "col": 2,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C3",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "Hb4FxNhAXUr0fIgms2Ugs",
+        "row": 0,
+        "col": 3,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C4",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "ijQPAivvv-V9UL4oVouG7",
+        "row": 0,
+        "col": 4,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C5",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "Yj2muJSoYesuNKKUvIX45",
+        "row": 0,
+        "col": 5,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C6",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "l4UjvuGc6YUSGdQlS58Ub",
+        "row": 0,
+        "col": 6,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C7",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "cLnSjMWXyEBkUFhXHrVyd",
+        "row": 0,
+        "col": 7,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C8",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "y0Z9qaLK3gWBa4-4L70RZ",
+        "row": 0,
+        "col": 8,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C9",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "5AhIhKZptssR9edgGSwng",
+        "row": 0,
+        "col": 9,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C10",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "w_U3BNYnmHrvSBg3zRR9k",
+        "row": 0,
+        "col": 10,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C11",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "EvwqeYk-PkW0ecN2tAnFm",
+        "row": 0,
+        "col": 11,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C12",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "w1lIJ1rkcNap0aqdMDZr7",
+        "row": 0,
+        "col": 12,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C13",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "0K-mTVhmc95dIfmj33vdo",
+        "row": 0,
+        "col": 13,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C14",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "jRE8AnB3iXrzWSHDlTW7E",
+        "row": 0,
+        "col": 14,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C15",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "NGm9JU3qElaC-gB9KHYeL",
+        "row": 0,
+        "col": 15,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C16",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "3sb5ytC0j3tIRUa-L3Hzo",
+        "row": 0,
+        "col": 16,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C17",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "RH6pJ8gEpn1DzhrcFLE7U",
+        "row": 0,
+        "col": 17,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C18",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "OaFR9CztG8aIILvk-qZDI",
+        "row": 1,
+        "col": 0,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C1",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "zZ6GccL1dtQj4-H2LGp1_",
+        "row": 1,
+        "col": 1,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C2",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "WH-9LsR7wPHU1jf15ZqtA",
+        "row": 1,
+        "col": 2,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C3",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "VeAiJk0e0JUw8TO7h0zVD",
+        "row": 1,
+        "col": 3,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C4",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "WIRI5p_uEQLK5WsjF6qjw",
+        "row": 1,
+        "col": 4,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C5",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "lFIGZ4b8mqM-lg640koaE",
+        "row": 1,
+        "col": 5,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C6",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "TQv3wT0WhjxkSRhwbPZqW",
+        "row": 1,
+        "col": 6,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C7",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "NopsoxlmWsKkzNrhGEiBN",
+        "row": 1,
+        "col": 7,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C8",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "4Zi2bhvyWHM32frTOKX9y",
+        "row": 1,
+        "col": 8,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C9",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "cHDLpBA-orNV-HcfWeubY",
+        "row": 1,
+        "col": 9,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C10",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "coBOv6l43ner_eO4IgtC0",
+        "row": 1,
+        "col": 10,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C11",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "btwWP01ORZ-29k4Y_e1cP",
+        "row": 1,
+        "col": 11,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C12",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "qdJWI1Q2yw79j-12j79lJ",
+        "row": 1,
+        "col": 12,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C13",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "2ivpIgUj1thiIZr9uhG3s",
+        "row": 1,
+        "col": 13,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C14",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "P3fwHSKumwhkTAZx0jyCn",
+        "row": 1,
+        "col": 14,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C15",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "zE503BYkrq5MnzzNsWGEM",
+        "row": 1,
+        "col": 15,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C16",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "PyZhp00cRaLlSGBkHeU80",
+        "row": 1,
+        "col": 16,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C17",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "bUXKynGI6fnoTAKKXb-eN",
+        "row": 1,
+        "col": 17,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C18",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "MYwmFp7jefENCY5tpb9vH",
+        "row": 2,
+        "col": 0,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C1",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "xn9yeabKnzswp1Z-yHnBL",
+        "row": 2,
+        "col": 1,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C2",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "RvXBq09l7TXxFiESzOf8c",
+        "row": 2,
+        "col": 2,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C3",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "oTX5DBe9q77wCgUgu18K3",
+        "row": 2,
+        "col": 3,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C4",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "PQ5dlLWzt88LhnGUz3SWa",
+        "row": 2,
+        "col": 4,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C5",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "XRumscdqyEaMj0qE5CA7a",
+        "row": 2,
+        "col": 5,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C6",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "BUIKvcZNpL8cIti8pGdM2",
+        "row": 2,
+        "col": 6,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C7",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "RC0tfonwjKCh3QuMae0Xg",
+        "row": 2,
+        "col": 7,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C8",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "yCZdfk-n2a7RzKikVvPPY",
+        "row": 2,
+        "col": 8,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C9",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "NC4HivAT5zMulyRrf_Bx_",
+        "row": 2,
+        "col": 9,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C10",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "6mqItLeRs0Bep8ZO_eqsw",
+        "row": 2,
+        "col": 10,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C11",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "9iU94xvFbdVGE1wrZlRNm",
+        "row": 2,
+        "col": 11,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C12",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "b5LOkT7k0YZy3rKyHgzXQ",
+        "row": 2,
+        "col": 12,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C13",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "F2XUIJglBgwr8NAj3Syxn",
+        "row": 2,
+        "col": 13,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C14",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "6Mljr_q7VMenlRZWsgZeU",
+        "row": 2,
+        "col": 14,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C15",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "V0hE5lIzbi-ak2mCh53eU",
+        "row": 2,
+        "col": 15,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C16",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "pUDJOJ7QnD8nTT00toQko",
+        "row": 2,
+        "col": 16,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C17",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "tbWTQkfoOltRrWLFyzRbL",
+        "row": 2,
+        "col": 17,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C18",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      }
+    ],
+    "modulePalette": []
+  },
+  "rack": {
+    "totalRU": 12,
+    "widthLabel": "19\" / 600mm",
+    "enclosureProductName": "Rack enclosure",
+    "enclosureUnitPrice": 0,
+    "enclosureBillCategory": "standard",
+    "gear": [
+      {
+        "id": "G7rwouFcRCNmSgtl8zh8d",
+        "productName": "Patch panel 24p",
+        "unitPrice": 0,
+        "billCategory": "standard",
+        "startRU": 1,
+        "heightRU": 1,
+        "notes": "",
+        "rj45PortCount": 0,
+        "sfpPortCount": 0
+      },
+      {
+        "id": "_aD5a2MwdDKaNwzlP6PQQ",
+        "productName": "PoE switch",
+        "unitPrice": 0,
+        "billCategory": "standard",
+        "startRU": 2,
+        "heightRU": 1,
+        "notes": "",
+        "rj45PortCount": 0,
+        "sfpPortCount": 0
+      }
+    ],
+    "patchPanelLinks": [],
+    "portLinks": []
+  },
+  "editorSettings": {
+    "snapGridM": 0.1,
+    "wallOrtho": true
+  },
+  "deviceCatalog": [],
+  "rackGearPalette": [
+    {
+      "id": "rp-patch24",
+      "productName": "Patch panel 24-port CAT6",
+      "unitPrice": 0,
+      "billCategory": "standard",
+      "heightRU": 1
+    },
+    {
+      "id": "rp-patch48",
+      "productName": "Patch panel 48-port fiber",
+      "unitPrice": 0,
+      "billCategory": "standard",
+      "heightRU": 2
+    },
+    {
+      "id": "rp-switch1u",
+      "productName": "Managed PoE switch 24p",
+      "unitPrice": 0,
+      "billCategory": "standard",
+      "heightRU": 1
+    },
+    {
+      "id": "rp-ups2u",
+      "productName": "Line-interactive UPS",
+      "unitPrice": 0,
+      "billCategory": "standard",
+      "heightRU": 2
+    },
+    {
+      "id": "rp-blank1u",
+      "productName": "Blank panel 1U",
+      "unitPrice": 0,
+      "billCategory": "standard",
+      "heightRU": 1
+    }
+  ]
+}

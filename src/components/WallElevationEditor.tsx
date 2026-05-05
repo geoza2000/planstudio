@@ -14,6 +14,7 @@ import { DND_DEVICE_TEMPLATE, filterWallDevicesForElevationView } from '../lib/d
 import {
   WALL_ELEVATION_INNER_X,
   WALL_ELEVATION_INNER_Y,
+  wallElevationDisplayXM,
   wallMetersFromWallDeviceDragEnd,
   wallPointerStagePxToMeters,
 } from '../lib/planCoordinates'
@@ -73,6 +74,18 @@ export const WallElevationEditor = forwardRef<KonvaStage, WallElevationEditorPro
       wallSheets.find((w) => w.id === activeWallId) ?? wallSheets[0] ?? null
     const hasRealWall = resolvedWall != null
     const wall = resolvedWall ?? WALL_ELEVATION_PLACEHOLDER
+    /** True when at least one other sheet shares this wall's openings (paired face). */
+    const openingsAreShared = useMemo(() => {
+      if (!resolvedWall?.openingsGroupId) return false
+      let count = 0
+      for (const w of wallSheets) {
+        if (w.openingsGroupId === resolvedWall.openingsGroupId) {
+          count += 1
+          if (count > 1) return true
+        }
+      }
+      return false
+    }, [resolvedWall, wallSheets])
 
     const { width, height } = useMemo(
       () => wallStageSize(wall.lengthM, wall.heightM),
@@ -84,6 +97,12 @@ export const WallElevationEditor = forwardRef<KonvaStage, WallElevationEditorPro
     const innerW = wall.lengthM * PPM
     const innerH = wall.heightM * PPM
     const floorY = innerTop + innerH
+
+    /** Match standing in the room facing the wall: `b`-face sheets use reversed +X. */
+    const elevationXDragOpts =
+      resolvedWall?.wallFace === 'b'
+        ? ({ lengthM: wall.lengthM, roomViewFlip: true } as const)
+        : undefined
 
     const [selectedId, setSelectedId] = useState<string | null>(null)
     /** Pointer meters while placing an opening — drives ghost preview before click. */
@@ -179,6 +198,7 @@ export const WallElevationEditor = forwardRef<KonvaStage, WallElevationEditorPro
         wall.heightM,
         innerLeft,
         innerTop,
+        elevationXDragOpts,
       )
       addWallMountDevice(
         wall.id,
@@ -205,6 +225,7 @@ export const WallElevationEditor = forwardRef<KonvaStage, WallElevationEditorPro
             wall.heightM,
             innerLeft,
             innerTop,
+            elevationXDragOpts,
           )
           addWallOpening(
             wall.id,
@@ -234,6 +255,7 @@ export const WallElevationEditor = forwardRef<KonvaStage, WallElevationEditorPro
         wall.id,
         wall.lengthM,
         wall.heightM,
+        elevationXDragOpts,
       ],
     )
 
@@ -255,13 +277,14 @@ export const WallElevationEditor = forwardRef<KonvaStage, WallElevationEditorPro
           wall.heightM,
           innerLeft,
           innerTop,
+          elevationXDragOpts,
         )
         setOpeningHoverM({
           xM: clamp(xM, 0, wall.lengthM),
           zM: clamp(zM, 0, wall.heightM),
         })
       },
-      [hasRealWall, innerLeft, innerTop, tool, wall.heightM, wall.lengthM],
+      [hasRealWall, innerLeft, innerTop, tool, wall.heightM, wall.lengthM, elevationXDragOpts],
     )
 
     const onWallSurfacePointerLeave = useCallback(() => {
@@ -379,7 +402,8 @@ export const WallElevationEditor = forwardRef<KonvaStage, WallElevationEditorPro
               onMouseLeave={onWallSurfacePointerLeave}
             />
             {(wall.openings ?? []).map((o) => {
-              const left = innerLeft + (o.xM - o.widthM / 2) * PPM
+              const dispXM = wallElevationDisplayXM(o.xM, wall.lengthM, wall.wallFace)
+              const left = innerLeft + (dispXM - o.widthM / 2) * PPM
               const top =
                 innerTop + (wall.heightM - o.zM - o.heightM / 2) * PPM
               const wpx = o.widthM * PPM
@@ -413,6 +437,7 @@ export const WallElevationEditor = forwardRef<KonvaStage, WallElevationEditorPro
                       wall.heightM,
                       innerLeft,
                       innerTop,
+                      elevationXDragOpts,
                     )
                     moveWallOpening(
                       wall.id,
@@ -445,13 +470,33 @@ export const WallElevationEditor = forwardRef<KonvaStage, WallElevationEditorPro
                       verticalAlign="middle"
                     />
                   ) : null}
+                  {openingsAreShared ? (
+                    // Hint that this opening is mirrored on the opposite face of the wall.
+                    <Text
+                      text="↔"
+                      fontSize={11}
+                      fill="#fbbf24"
+                      x={-wpx / 2 + 3}
+                      y={-hpx / 2 + 1}
+                      listening={false}
+                    />
+                  ) : null}
                 </Group>
               )
             })}
             {openingPreview ? (
               <Group listening={false}>
                 <Rect
-                  x={innerLeft + (openingPreview.xM - openingPreview.widthM / 2) * PPM}
+                  x={
+                    innerLeft +
+                    (wallElevationDisplayXM(
+                      openingPreview.xM,
+                      wall.lengthM,
+                      wall.wallFace,
+                    ) -
+                      openingPreview.widthM / 2) *
+                      PPM
+                  }
                   y={
                     innerTop +
                     (wall.heightM - openingPreview.zM - openingPreview.heightM / 2) * PPM
@@ -473,7 +518,8 @@ export const WallElevationEditor = forwardRef<KonvaStage, WallElevationEditorPro
               </Group>
             ) : null}
             {visibleWallDevices.map((d) => {
-              const cx = innerLeft + d.xM * PPM
+              const dispDevXM = wallElevationDisplayXM(d.xM, wall.lengthM, wall.wallFace)
+              const cx = innerLeft + dispDevXM * PPM
               const cy = innerTop + (wall.heightM - d.zM) * PPM
               const selected = d.id === selectedId
               const linked = Boolean(d.linkedFloorDeviceId)
@@ -504,6 +550,7 @@ export const WallElevationEditor = forwardRef<KonvaStage, WallElevationEditorPro
                       wall.heightM,
                       innerLeft,
                       innerTop,
+                      elevationXDragOpts,
                     )
                     moveWallMountDevice(
                       wall.id,

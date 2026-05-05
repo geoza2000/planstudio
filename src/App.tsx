@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Stage as KonvaStage } from 'konva/lib/Stage'
 import './App.css'
-import { BomPanel } from './components/BomPanel'
 import { FloorPlanEditor } from './components/FloorPlanEditor'
 import { PanelEditor } from './components/PanelEditor'
 import { PanelModulePaletteList } from './components/PanelModulePaletteList'
@@ -12,15 +11,23 @@ import { DeviceTemplatePalette } from './components/DeviceTemplatePalette'
 import { KnxBusDeviceFields } from './components/KnxBusDeviceFields'
 import { UnlinkedDevicesImportModal } from './components/UnlinkedDevicesImportModal'
 import {
-  downloadDataUrl,
+  downloadBlob,
   downloadJson,
-  downloadPngBatch,
-  downloadText,
-  formatBomCsv,
   slug,
   stageToPngDataUrl,
 } from './lib/exporters'
 import { buildBom } from './lib/bom'
+import { buildProjectPdfBlob, type ProjectPdfFloorPart } from './lib/projectPdfDocument'
+import { renderRoomIsolationPngDataUrl } from './lib/renderRoomPlanIsolation'
+import {
+  aggregateShoppingLines,
+  buildPdfDeviceRows,
+  formatProjectMetaLines,
+  panelEquipmentRows,
+  rackEquipmentRows,
+  shoppingGroupsByFloor,
+  shoppingGroupsByManufacturer,
+} from './lib/projectPdfData'
 import { DIN_SCALE_TOOLTIP } from './lib/dinScale'
 import {
   isProjectFile,
@@ -53,7 +60,7 @@ import type {
   RackFrame,
   WallSheet,
 } from './types/project'
-import { CONNECTOR_SUBTYPES, DEVICE_TYPES, SCHEMA_VERSION } from './types/project'
+import { CONNECTOR_SUBTYPES, DEVICE_TYPES, SCHEMA_VERSION, deviceHoverLabel } from './types/project'
 import { listUnlinkedPlanWallDevices } from './lib/unlinkedDeviceMigration'
 import {
   segmentAngleDegFromPlusX,
@@ -256,6 +263,9 @@ function App() {
   const setActiveFloorId = useProjectStore((s) => s.setActiveFloorId)
   const addFloorLevel = useProjectStore((s) => s.addFloorLevel)
   const removeFloorLevel = useProjectStore((s) => s.removeFloorLevel)
+  const setFloorLevelLabel = useProjectStore((s) => s.setFloorLevelLabel)
+  const duplicateFloorLevel = useProjectStore((s) => s.duplicateFloorLevel)
+  const moveFloorLevel = useProjectStore((s) => s.moveFloorLevel)
   const activeTab = useProjectStore((s) => s.activeTab)
   const setActiveTabRaw = useProjectStore((s) => s.setActiveTab)
   const setActiveTab = (tab: EditorTab) => {
@@ -299,6 +309,7 @@ function App() {
   const activeWallId = useProjectStore((s) => s.activeWallId)
   const setActiveWallId = useProjectStore((s) => s.setActiveWallId)
   const updateWallSheetMeta = useProjectStore((s) => s.updateWallSheetMeta)
+  const updatePlanRegionLabel = useProjectStore((s) => s.updatePlanRegionLabel)
   const addWallSheet = useProjectStore((s) => s.addWallSheet)
   const removeWallSheet = useProjectStore((s) => s.removeWallSheet)
   const setFloorDeviceWallLink = useProjectStore((s) => s.setFloorDeviceWallLink)
@@ -386,10 +397,36 @@ function App() {
     [project.floors, activeFloorId],
   )
 
+  const sortedFloorIds = useMemo(
+    () =>
+      [...project.floors]
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id))
+        .map((f) => f.id),
+    [project.floors],
+  )
+  const floorOrderIndex = sortedFloorIds.indexOf(activeFloorId)
+  const canMoveFloorUp = floorOrderIndex > 0
+  const canMoveFloorDown =
+    floorOrderIndex >= 0 && floorOrderIndex < sortedFloorIds.length - 1
+
   const activeWall: WallSheet | undefined =
     wallSheets.length === 0
       ? undefined
       : (wallSheets.find((w) => w.id === activeWallId) ?? wallSheets[0])
+
+  const wallSheetsSamePlanSegment = useMemo(() => {
+    if (!activeWall?.wallSegmentId) return []
+    const sid = activeWall.wallSegmentId
+    return [...wallSheets.filter((w) => w.wallSegmentId === sid)].sort((a, b) => {
+      const ra = a.roomRegionId
+        ? floorPlan?.regions.find((r) => r.id === a.roomRegionId)?.label
+        : undefined
+      const rb = b.roomRegionId
+        ? floorPlan?.regions.find((r) => r.id === b.roomRegionId)?.label
+        : undefined
+      return (ra ?? a.label).localeCompare(rb ?? b.label) || a.id.localeCompare(b.id)
+    })
+  }, [activeWall?.wallSegmentId, wallSheets, floorPlan?.regions])
 
   const selectedWallSeg = useMemo(() => {
     if (!floorPlan || selectedWallSegmentIds.length !== 1) return null
@@ -436,29 +473,12 @@ function App() {
     return o
   }, [wallSheets])
 
-  const [pngExportScope, setPngExportScope] = useState<
-    'view' | 'floor' | 'allFloors'
-  >('view')
+  const [pdfExportBusy, setPdfExportBusy] = useState(false)
+  const pdfExportBusyRef = useRef(false)
 
   const exportJson = () => {
     downloadJson(slug(project.name), project)
   }
-
-  const exportJsonWithBom = () => {
-    downloadJson(`${slug(project.name)}-with-bom`, {
-      ...project,
-      bom: buildBom(project).bom,
-    })
-  }
-
-  const exportBomCsv = () => {
-    downloadText(
-      `${slug(project.name)}-bom.csv`,
-      formatBomCsv(buildBom(project).lines),
-    )
-  }
-
-  const PNG_EXPORT_TICK_MS = 120
 
   const capturePngForTab = useCallback((tab: EditorTab) => {
     const map: Record<EditorTab, KonvaStage | null> = {
@@ -488,197 +508,195 @@ function App() {
     } else {
       name = `${nameSlug}-${tab}.png`
     }
-    return { filename: name, dataUrl: stageToPngDataUrl(stage, { pixelRatio: 2 }) }
+    const ru = st.project.rack.totalRU
+    const pixelRatio =
+      tab === 'rack' && ru > 32 ? 1 : tab === 'rack' && ru > 22 ? 1.5 : 2
+    return {
+      filename: name,
+      dataUrl: stageToPngDataUrl(stage, { pixelRatio }),
+    }
   }, [])
 
-  const exportPngForTab = useCallback(
-    (tab: EditorTab) => {
-      const cap = capturePngForTab(tab)
-      if (cap) downloadDataUrl(cap.filename, cap.dataUrl)
-    },
-    [capturePngForTab],
-  )
+  const PDF_EXPORT_TICK_MS = 200
 
-  const exportAllPng = useCallback(() => {
-    const tabs = ['floor', 'wall', 'panel', 'rack'] as const
-    const entries = tabs.flatMap((t) => {
-      const c = capturePngForTab(t)
-      return c ? [c] : []
-    })
-    const nameSlug = slug(useProjectStore.getState().project.name)
-    void downloadPngBatch(`${nameSlug}-all-views`, entries)
-  }, [capturePngForTab])
+  const runProjectPdfExport = useCallback(async () => {
+    if (pdfExportBusyRef.current) return
+    pdfExportBusyRef.current = true
+    setPdfExportBusy(true)
+    const st0 = useProjectStore.getState()
+    const savedTab = st0.activeTab
+    const savedFloor = st0.activeFloorId
+    const savedWall = st0.activeWallId
 
-  const runScopedPngExport = useCallback(
-    (scopeOverride?: 'view' | 'floor' | 'allFloors') => {
-      const scope = scopeOverride ?? pngExportScope
-      if (scope === 'view') {
-        exportPngForTab(activeTab)
-        return
+    const wait = () => new Promise<void>((r) => window.setTimeout(r, PDF_EXPORT_TICK_MS))
+    const paint = () =>
+      new Promise<void>((r) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            window.setTimeout(r, 40)
+          })
+        })
+      })
+
+    try {
+      setActiveTab('floor')
+      await paint()
+      await wait()
+
+      const p = useProjectStore.getState().project
+      const floorsSorted = [...p.floors].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id),
+      )
+
+      const metaLines = formatProjectMetaLines(p)
+      const overviewFloorImages: { floorLabel: string; dataUrl: string }[] = []
+
+      for (const fl of floorsSorted) {
+        setActiveFloorId(fl.id)
+        await paint()
+        await wait()
+        const c = capturePngForTab('floor')
+        if (c) overviewFloorImages.push({ floorLabel: fl.label, dataUrl: c.dataUrl })
       }
 
-      const st0 = useProjectStore.getState()
-      const savedFloorId = st0.activeFloorId
-      const savedWallId = st0.activeWallId
+      const perFloor: ProjectPdfFloorPart[] = []
 
-      if (scope === 'floor') {
-        const fl = st0.project.floors.find(
-          (f) => f.id === (savedFloorId ?? st0.project.floors[0]?.id),
-        )
-        if (!fl) return
-        const walls = fl.wallSheets
-        const nameSlug = slug(st0.project.name)
-        const floorSlug = slug(fl.label ?? 'floor')
-        const entries: { filename: string; dataUrl: string }[] = []
-        const fc = capturePngForTab('floor')
-        if (fc) entries.push(fc)
-        const finishFloorZip = () => {
-          void downloadPngBatch(`${nameSlug}-floor-${floorSlug}`, entries).then(() => {
-            setActiveWallId(savedWallId)
+      for (const fl of floorsSorted) {
+        setActiveFloorId(fl.id)
+        setActiveTab('floor')
+        await paint()
+        await wait()
+        const fp = capturePngForTab('floor')
+
+        const roomRegions = [...fl.plan.regions]
+          .filter((r) => r.kind === 'room' || r.kind === 'patio' || r.kind === 'other')
+          .sort(
+            (a, b) =>
+              (a.label || '').localeCompare(b.label || '') || a.id.localeCompare(b.id),
+          )
+        const roomIds = new Set(roomRegions.map((r) => r.id))
+        const rooms: ProjectPdfFloorPart['rooms'] = []
+
+        for (const reg of roomRegions) {
+          const walls = [...fl.wallSheets]
+            .filter((ws) => ws.roomRegionId === reg.id)
+            .sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id))
+          const wallParts: ProjectPdfFloorPart['rooms'][number]['walls'] = []
+          for (const ws of walls) {
+            setActiveWallId(ws.id)
+            setActiveTab('wall')
+            await paint()
+            await wait()
+            const wcap = capturePngForTab('wall')
+            const deviceNames = ws.devices.map((d) =>
+              deviceHoverLabel({
+                label: d.label,
+                productName: d.productName,
+                type: d.type,
+                connectorSubtype: d.connectorSubtype,
+              }),
+            )
+            wallParts.push({
+              wallLabel: ws.label,
+              elevationDataUrl: wcap?.dataUrl ?? '',
+              deviceNames,
+            })
+          }
+          rooms.push({
+            regionLabel:
+              reg.label.trim() ||
+              (reg.kind === 'patio' ? 'Patio' : reg.kind === 'other' ? 'Area' : 'Room'),
+            roomPlanDataUrl:
+              renderRoomIsolationPngDataUrl(fl, reg.id, { allFloors: floorsSorted }) ?? '',
+            walls: wallParts,
           })
         }
-        if (walls.length === 0) {
-          finishFloorZip()
-          return
-        }
-        let i = 0
-        const stepWall = () => {
-          if (i >= walls.length) {
-            finishFloorZip()
-            return
+
+        const orphanSheets = [...fl.wallSheets]
+          .filter((ws) => !ws.roomRegionId || !roomIds.has(ws.roomRegionId))
+          .sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id))
+        if (orphanSheets.length > 0) {
+          const wallParts: ProjectPdfFloorPart['rooms'][number]['walls'] = []
+          for (const ws of orphanSheets) {
+            setActiveWallId(ws.id)
+            setActiveTab('wall')
+            await paint()
+            await wait()
+            const wcap = capturePngForTab('wall')
+            const deviceNames = ws.devices.map((d) =>
+              deviceHoverLabel({
+                label: d.label,
+                productName: d.productName,
+                type: d.type,
+                connectorSubtype: d.connectorSubtype,
+              }),
+            )
+            wallParts.push({
+              wallLabel: ws.label,
+              elevationDataUrl: wcap?.dataUrl ?? '',
+              deviceNames,
+            })
           }
-          setActiveWallId(walls[i]!.id)
-          i++
-          window.setTimeout(() => {
-            const wc = capturePngForTab('wall')
-            if (wc) entries.push(wc)
-            window.setTimeout(stepWall, PNG_EXPORT_TICK_MS)
-          }, PNG_EXPORT_TICK_MS)
+          rooms.push({
+            regionLabel: 'Walls not assigned to a room or patio',
+            roomPlanDataUrl: '',
+            walls: wallParts,
+          })
         }
-        window.setTimeout(stepWall, PNG_EXPORT_TICK_MS)
-        return
+
+        perFloor.push({
+          floorLabel: fl.label,
+          floorPlanDataUrl: fp?.dataUrl ?? '',
+          rooms,
+        })
       }
 
-      const order = [...st0.project.floors].sort((a, b) => a.sortOrder - b.sortOrder)
-    const nameSlug = slug(st0.project.name)
+      const pFinal = useProjectStore.getState().project
+      const built = buildBom(pFinal)
 
-    const finish = () => {
-      const st = useProjectStore.getState()
-      setActiveFloorId(savedFloorId ?? st.project.floors[0]?.id ?? null)
-      setActiveWallId(savedWallId)
+      setActiveTab('panel')
+      await paint()
+      await wait()
+      const panelCap = capturePngForTab('panel')
+
+      setActiveTab('rack')
+      await paint()
+      await wait()
+      const rackCap = capturePngForTab('rack')
+
+      const blob = buildProjectPdfBlob({
+        projectName: pFinal.name,
+        generatedAtISO: new Date().toISOString(),
+        metaLines,
+        overviewFloorImages,
+        perFloor,
+        deviceRows: buildPdfDeviceRows(pFinal),
+        panelDiagramDataUrl: panelCap?.dataUrl ?? '',
+        panelEquipment: panelEquipmentRows(pFinal),
+        panelShopping: aggregateShoppingLines(
+          pFinal,
+          built.lines.filter((l) => l.source === 'panel'),
+        ),
+        rackDiagramDataUrl: rackCap?.dataUrl ?? '',
+        rackEquipment: rackEquipmentRows(pFinal),
+        rackShopping: aggregateShoppingLines(
+          pFinal,
+          built.lines.filter((l) => l.source === 'rack' || l.source === 'rack_enclosure'),
+        ),
+        shoppingByManufacturer: shoppingGroupsByManufacturer(pFinal, built.lines),
+        shoppingByFloor: shoppingGroupsByFloor(built.lines),
+      })
+
+      downloadBlob(`${slug(pFinal.name)}.pdf`, blob)
+    } finally {
+      setActiveTab(savedTab)
+      setActiveFloorId(savedFloor)
+      setActiveWallId(savedWall)
+      pdfExportBusyRef.current = false
+      setPdfExportBusy(false)
     }
+  }, [capturePngForTab, setActiveFloorId, setActiveTab, setActiveWallId])
 
-    if (order.length === 0) {
-      finish()
-      return
-    }
-
-    let fi = 0
-    const entries: { filename: string; dataUrl: string }[] = []
-
-      const stepFloor = () => {
-        if (fi >= order.length) {
-          void downloadPngBatch(`${nameSlug}-all-floors`, entries).then(finish)
-          return
-        }
-        const f = order[fi]!
-        setActiveFloorId(f.id)
-        window.setTimeout(() => {
-          const floorCap = capturePngForTab('floor')
-          if (floorCap) entries.push(floorCap)
-          const walls = f.wallSheets
-          let wi = 0
-          const stepWall = () => {
-            if (wi >= walls.length) {
-              fi++
-              window.setTimeout(stepFloor, PNG_EXPORT_TICK_MS)
-              return
-            }
-            const w = walls[wi]!
-            wi++
-            setActiveWallId(w.id)
-            window.setTimeout(() => {
-              const wallCap = capturePngForTab('wall')
-              if (wallCap) entries.push(wallCap)
-              window.setTimeout(stepWall, PNG_EXPORT_TICK_MS)
-            }, PNG_EXPORT_TICK_MS)
-          }
-          if (walls.length === 0) {
-            fi++
-            window.setTimeout(stepFloor, PNG_EXPORT_TICK_MS)
-          } else {
-            window.setTimeout(stepWall, PNG_EXPORT_TICK_MS)
-          }
-        }, PNG_EXPORT_TICK_MS)
-      }
-
-      stepFloor()
-    },
-    [
-      activeTab,
-      capturePngForTab,
-      exportPngForTab,
-      pngExportScope,
-      setActiveFloorId,
-      setActiveWallId,
-    ],
-  )
-
-  const headerPngExportRef = useRef<HTMLDivElement>(null)
-  const headerPngTriggerRef = useRef<HTMLButtonElement>(null)
-  const pngMenuItemRefs = useRef<(HTMLButtonElement | null)[]>([])
-
-  const [pngExportMenuOpen, setPngExportMenuOpen] = useState(false)
-  const [pngMenuFocusIdx, setPngMenuFocusIdx] = useState(0)
-
-  const pngMenuScopeToIndex = (s: 'view' | 'floor' | 'allFloors') =>
-    s === 'view' ? 0 : s === 'floor' ? 1 : 2
-
-  useEffect(() => {
-    if (!pngExportMenuOpen) return
-    pngMenuItemRefs.current[pngMenuFocusIdx]?.focus()
-  }, [pngExportMenuOpen, pngMenuFocusIdx])
-
-  const closePngExportMenu = useCallback(() => {
-    setPngExportMenuOpen(false)
-    headerPngTriggerRef.current?.focus()
-  }, [])
-
-  useEffect(() => {
-    if (!pngExportMenuOpen) return
-    const onDocMouseDown = (e: MouseEvent) => {
-      const root = headerPngExportRef.current
-      if (root && !root.contains(e.target as Node)) closePngExportMenu()
-    }
-    const onDocKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closePngExportMenu()
-    }
-    document.addEventListener('mousedown', onDocMouseDown)
-    document.addEventListener('keydown', onDocKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', onDocMouseDown)
-      document.removeEventListener('keydown', onDocKeyDown)
-    }
-  }, [pngExportMenuOpen, closePngExportMenu])
-
-  const onPngMenuKeyDown = (e: React.KeyboardEvent) => {
-    const n = 4
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setPngMenuFocusIdx((i) => (i + 1) % n)
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setPngMenuFocusIdx((i) => (i - 1 + n) % n)
-    } else if (e.key === 'Home') {
-      e.preventDefault()
-      setPngMenuFocusIdx(0)
-    } else if (e.key === 'End') {
-      e.preventDefault()
-      setPngMenuFocusIdx(n - 1)
-    }
-  }
-
-  const [bomOpen, setBomOpen] = useState(false)
   const [pendingImportMigration, setPendingImportMigration] = useState<PlanstudioProject | null>(
     null,
   )
@@ -861,7 +879,7 @@ function App() {
       <header className="app-header">
         <div className="brand">
           <h1>Planstudio</h1>
-          <p className="tagline">Multi-floor plans · v{SCHEMA_VERSION} JSON + PNG</p>
+          <p className="tagline">Multi-floor plans · v{SCHEMA_VERSION} JSON + PDF</p>
         </div>
         <div className="header-actions">
           <label className="btn secondary">
@@ -882,18 +900,14 @@ function App() {
           <button type="button" className="btn secondary" onClick={exportJson}>
             Download JSON
           </button>
-          <button type="button" className="btn secondary" onClick={exportJsonWithBom}>
-            Project + BOM
-          </button>
-          <button type="button" className="btn secondary" onClick={exportBomCsv}>
-            BOM (CSV)
-          </button>
           <button
             type="button"
-            className="btn secondary"
-            onClick={() => setBomOpen(true)}
+            className="btn primary"
+            onClick={() => void runProjectPdfExport()}
+            disabled={pdfExportBusy}
+            title="Single PDF: project details, floor plans in order, each floor with rooms and wall elevations, full device list, panel and rack (diagram + equipment + shopping), then shopping by manufacturer and by floor."
           >
-            Shopping list
+            {pdfExportBusy ? 'Building PDF…' : 'Export PDF'}
           </button>
           <button
             type="button"
@@ -913,120 +927,11 @@ function App() {
           >
             Redo
           </button>
-          <div
-            ref={headerPngExportRef}
-            className="header-png-export"
-            title="All floors: one PNG per floor plan and per wall on each level; your browser may download several files in sequence (allow multiple downloads if prompted)."
-          >
-            <button
-              ref={headerPngTriggerRef}
-              type="button"
-              className="btn primary header-png-trigger"
-              aria-haspopup="menu"
-              aria-expanded={pngExportMenuOpen}
-              aria-controls="header-png-export-menu"
-              id="header-png-export-trigger"
-              onClick={() => {
-                setPngExportMenuOpen((open) => {
-                  const next = !open
-                  if (next) setPngMenuFocusIdx(pngMenuScopeToIndex(pngExportScope))
-                  return next
-                })
-              }}
-            >
-              <span className="header-png-trigger-label">Export PNG</span>
-              <span className="header-png-chevron" aria-hidden />
-            </button>
-            {pngExportMenuOpen ? (
-              <div
-                id="header-png-export-menu"
-                role="menu"
-                aria-labelledby="header-png-export-trigger"
-                className="header-png-menu"
-                onKeyDown={onPngMenuKeyDown}
-              >
-                <button
-                  ref={(el) => {
-                    pngMenuItemRefs.current[0] = el
-                  }}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={pngExportScope === 'view'}
-                  tabIndex={pngMenuFocusIdx === 0 ? 0 : -1}
-                  className={`header-png-menu-item${
-                    pngExportScope === 'view' ? ' header-png-menu-item-active' : ''
-                  }`}
-                  onClick={() => {
-                    setPngExportScope('view')
-                    runScopedPngExport('view')
-                    closePngExportMenu()
-                  }}
-                >
-                  This view
-                </button>
-                <button
-                  ref={(el) => {
-                    pngMenuItemRefs.current[1] = el
-                  }}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={pngExportScope === 'floor'}
-                  tabIndex={pngMenuFocusIdx === 1 ? 0 : -1}
-                  className={`header-png-menu-item${
-                    pngExportScope === 'floor' ? ' header-png-menu-item-active' : ''
-                  }`}
-                  onClick={() => {
-                    setPngExportScope('floor')
-                    runScopedPngExport('floor')
-                    closePngExportMenu()
-                  }}
-                >
-                  This floor
-                </button>
-                <button
-                  ref={(el) => {
-                    pngMenuItemRefs.current[2] = el
-                  }}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={pngExportScope === 'allFloors'}
-                  tabIndex={pngMenuFocusIdx === 2 ? 0 : -1}
-                  className={`header-png-menu-item${
-                    pngExportScope === 'allFloors' ? ' header-png-menu-item-active' : ''
-                  }`}
-                  onClick={() => {
-                    setPngExportScope('allFloors')
-                    runScopedPngExport('allFloors')
-                    closePngExportMenu()
-                  }}
-                >
-                  All floors
-                </button>
-                <button
-                  ref={(el) => {
-                    pngMenuItemRefs.current[3] = el
-                  }}
-                  type="button"
-                  role="menuitem"
-                  tabIndex={pngMenuFocusIdx === 3 ? 0 : -1}
-                  className="header-png-menu-item header-png-menu-item-secondary"
-                  onClick={() => {
-                    exportAllPng()
-                    closePngExportMenu()
-                  }}
-                >
-                  PNG (all views)
-                </button>
-              </div>
-            ) : null}
-          </div>
           <button type="button" className="btn ghost" onClick={resetProject}>
             Reset
           </button>
         </div>
       </header>
-
-      <BomPanel project={project} open={bomOpen} onClose={() => setBomOpen(false)} />
 
       <div
         className={`app-body${showDevicePaletteRail ? ' app-body-with-palette' : ''}${
@@ -1049,13 +954,24 @@ function App() {
               onChange={(e) => setActiveFloorId(e.target.value)}
             >
               {[...project.floors]
-                .sort((a, b) => a.sortOrder - b.sortOrder)
+                .sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id))
                 .map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.label}
                   </option>
                 ))}
             </select>
+          </label>
+          <label className="field">
+            <span>Floor name</span>
+            <input
+              value={activeFloor?.label ?? ''}
+              onChange={(e) => {
+                if (activeFloor) setFloorLevelLabel(activeFloor.id, e.target.value)
+              }}
+              disabled={!activeFloor}
+              aria-label="Floor name"
+            />
           </label>
           <div className="btn-row">
             <button type="button" className="btn secondary" onClick={addFloorLevel}>
@@ -1068,6 +984,32 @@ function App() {
               disabled={project.floors.length <= 1}
             >
               Remove floor
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => duplicateFloorLevel(activeFloorId)}
+              disabled={!activeFloor}
+            >
+              Duplicate
+            </button>
+          </div>
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => moveFloorLevel(activeFloorId, 'up')}
+              disabled={!canMoveFloorUp}
+            >
+              Move up
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => moveFloorLevel(activeFloorId, 'down')}
+              disabled={!canMoveFloorDown}
+            >
+              Move down
             </button>
           </div>
 
@@ -1217,9 +1159,12 @@ function App() {
                 <div className="panel-block inner">
                   <h3 className="side-heading">Plan wall segment</h3>
                   <p className="muted small">
-                    Endpoint A (the first point when the wall was drawn) stays fixed; B moves to
-                    match length and angle. Angle is degrees from +X, same as the wall tool. The
-                    free endpoint is snapped to the grid ({snapGridM} m).
+                    Drag the <strong>yellow handles</strong> on the plan at each end to move
+                    endpoint A or B independently (snapped to the grid). You can still drag the
+                    wall line to translate the whole segment. Endpoint A (the first point when the
+                    wall was drawn) and B can also be adjusted here via length and angle; angle is
+                    degrees from +X, same as the wall tool. The free endpoint is snapped to the
+                    grid ({snapGridM} m).
                   </p>
                   <label className="field">
                     <span>Length (m)</span>
@@ -1696,13 +1641,51 @@ function App() {
                   value={activeWall.id}
                   onChange={(e) => setActiveWallId(e.target.value)}
                 >
-                  {wallSheets.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.label} — {w.wallSegmentId ? 'From plan' : 'Custom'}
-                    </option>
-                  ))}
+                  {wallSheets.map((w) => {
+                    const room =
+                      w.roomRegionId &&
+                      floorPlan?.regions.find((r) => r.id === w.roomRegionId)
+                    const suffix = w.wallSegmentId
+                      ? room
+                        ? `From plan · ${room.label} side`
+                        : 'From plan'
+                      : 'Custom'
+                    return (
+                      <option key={w.id} value={w.id}>
+                        {w.label} — {suffix}
+                      </option>
+                    )
+                  })}
                 </select>
               </label>
+              {activeWall.wallSegmentId && wallSheetsSamePlanSegment.length > 1 ? (
+                <div className="field" style={{ marginTop: 10 }}>
+                  <span>Room faces on this plan segment</span>
+                  <div className="btn-row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                    {wallSheetsSamePlanSegment.map((w) => {
+                      const room = w.roomRegionId
+                        ? floorPlan?.regions.find((r) => r.id === w.roomRegionId)
+                        : undefined
+                      const title = room?.label ?? w.label
+                      return (
+                        <button
+                          key={w.id}
+                          type="button"
+                          className={w.id === activeWall.id ? 'btn secondary' : 'btn ghost'}
+                          onClick={() => setActiveWallId(w.id)}
+                        >
+                          {title}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="muted small" style={{ marginTop: 6 }}>
+                    One physical wall segment can border several rooms (for example at a
+                    T-junction). Doors and windows stay in sync across every face that shares
+                    this segment.
+                  </p>
+                </div>
+              ) : null}
               <div className="btn-row">
                 <button
                   type="button"
@@ -1754,27 +1737,55 @@ function App() {
                   />
                 </label>
               )}
-              {roomRegionOptions.length > 0 && (
-                <label className="field">
-                  <span>Link wall to region (BOM room)</span>
-                  <select
-                    value={activeWall.roomRegionId ?? ''}
-                    onChange={(e) => {
-                      const v = e.target.value
-                      updateWallSheetMeta(activeWall.id, {
-                        roomRegionId: v ? (v as Id) : undefined,
-                      })
-                    }}
-                  >
-                    <option value="">(use floor-device links / default)</option>
-                    {roomRegionOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+              {(() => {
+                const autoRoom =
+                  activeWall.roomRegionId
+                    ? floorPlan?.regions.find((r) => r.id === activeWall.roomRegionId)
+                    : undefined
+                if (autoRoom?.wallCycleSignature) {
+                  // Auto-detected room: rename inline; the wall label suffix updates on next reconcile.
+                  return (
+                    <label className="field">
+                      <span>Room (auto-detected from wall cycle)</span>
+                      <input
+                        value={autoRoom.label}
+                        onChange={(e) =>
+                          updatePlanRegionLabel(autoRoom.id, e.target.value)
+                        }
+                        title="Renaming this room updates every wall sheet on its boundary."
+                      />
+                      <p className="muted small" style={{ marginTop: 6 }}>
+                        Wall label includes the room slug ({activeWall.label}).
+                        The opposite face of this wall edits the same opening list.
+                      </p>
+                    </label>
+                  )
+                }
+                if (roomRegionOptions.length > 0) {
+                  return (
+                    <label className="field">
+                      <span>Link wall to region (BOM room)</span>
+                      <select
+                        value={activeWall.roomRegionId ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          updateWallSheetMeta(activeWall.id, {
+                            roomRegionId: v ? (v as Id) : undefined,
+                          })
+                        }}
+                      >
+                        <option value="">(use floor-device links / default)</option>
+                        {roomRegionOptions.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )
+                }
+                return null
+              })()}
               <div className="field-row">
                 <label className="field">
                   <span>

@@ -14,7 +14,7 @@ import {
 } from '../lib/deviceCatalogInstanceSync'
 import { emptyPanelSlot } from '../model/defaults'
 import { resizePanelBoard } from '../lib/panelResize'
-import { computeWallDrawB, snapMeters } from '../lib/geometry'
+import { computeWallDrawB, snapMeters, snapWallPointToPlanGeometry } from '../lib/geometry'
 import {
   normalizeRackGearList,
   clampRackGear,
@@ -28,11 +28,17 @@ import { DEFAULT_CEILING_HEIGHT_M } from '../lib/floorDeviceCluster'
 import { worldXYForWallMirrorOnPlan } from '../lib/planWallMirrorPosition'
 import {
   clearPlanLinksToWallDeviceIds,
-  newWallSheetForSegment,
   syncAllPlanWallSheetLabels,
   syncFloorWallsFromPlan,
   syncLinkedWallSheetLengthForSegment,
 } from '../lib/wallPlanSync'
+import { cloneFloorWithNewIds } from '../lib/duplicateFloorLevel'
+import { reconcileFloorWallTopology } from '../lib/wallRoomReconcile'
+import {
+  insertGroupedOpening,
+  removeGroupedOpening,
+  updateGroupedOpening,
+} from '../lib/wallOpeningGroupSync'
 import { createFloorLevel, createInitialProject } from '../model/defaults'
 import { clampWallOpeningMeters, newWallOpeningMeters } from '../lib/wallOpeningDefaults'
 import type {
@@ -105,6 +111,18 @@ function appendPast(
 ): PlanstudioProject[] {
   const merged = [...past, snapshot]
   return merged.length > HISTORY_MAX ? merged.slice(-HISTORY_MAX) : merged
+}
+
+function uniqueFloorLevelLabel(floors: FloorLevel[], base: string): string {
+  const used = new Set(floors.map((f) => f.label.trim()))
+  const root = base.trim() || 'Floor'
+  let label = root
+  let n = 2
+  while (used.has(label)) {
+    label = `${root} (${n})`
+    n += 1
+  }
+  return label
 }
 
 function runWithoutHistory(fn: () => void) {
@@ -247,6 +265,30 @@ function mapFloors(
   }
 }
 
+/** After grid-snapped tentative moves, snap each moved endpoint to other walls (vertices + edges). */
+function snapMovedWallEndpointsToPlan(
+  fl: FloorLevel,
+  wallSet: Set<string>,
+  tentative: Map<string, { a: PointM; b: PointM }>,
+): WallSegment[] {
+  const lifted = fl.plan.wallSegments.map((seg) =>
+    wallSet.has(seg.id) ? { ...seg, ...tentative.get(seg.id)! } : seg,
+  )
+  return fl.plan.wallSegments.map((seg) => {
+    if (!wallSet.has(seg.id)) return seg
+    const t = tentative.get(seg.id)!
+    const a2 = snapWallPointToPlanGeometry(t.a, lifted, {
+      ignoreSegmentId: seg.id,
+      ignoreVertex: 'a',
+    })
+    const b2 = snapWallPointToPlanGeometry(t.b, lifted, {
+      ignoreSegmentId: seg.id,
+      ignoreVertex: 'b',
+    })
+    return { ...seg, a: a2, b: b2 }
+  })
+}
+
 /**
  * Apply one plan delta to wall segments (snapped) and floor devices (clamped).
  * Returns `null` if nothing would change.
@@ -271,28 +313,34 @@ function applyMovePlanSelectionByDelta(
   const wm = fl.plan.widthM
   const dm = fl.plan.depthM
 
+  const tentative = new Map<string, { a: PointM; b: PointM }>()
+  for (const seg of fl.plan.wallSegments) {
+    if (!wallSet.has(seg.id)) continue
+    tentative.set(seg.id, {
+      a: snapMeters({ x: seg.a.x + deltaM.x, y: seg.a.y + deltaM.y }, grid),
+      b: snapMeters({ x: seg.b.x + deltaM.x, y: seg.b.y + deltaM.y }, grid),
+    })
+  }
+
+  const nextSegments =
+    wallSet.size > 0
+      ? snapMovedWallEndpointsToPlan(fl, wallSet, tentative)
+      : fl.plan.wallSegments
+
   let wallChanged = false
-  const nextSegments = fl.plan.wallSegments.map((seg) => {
-    if (!wallSet.has(seg.id)) return seg
-    const newA = snapMeters(
-      { x: seg.a.x + deltaM.x, y: seg.a.y + deltaM.y },
-      grid,
-    )
-    const newB = snapMeters(
-      { x: seg.b.x + deltaM.x, y: seg.b.y + deltaM.y },
-      grid,
-    )
+  for (let i = 0; i < nextSegments.length; i++) {
+    const old = fl.plan.wallSegments[i]!
+    const nw = nextSegments[i]!
     if (
-      newA.x === seg.a.x &&
-      newA.y === seg.a.y &&
-      newB.x === seg.b.x &&
-      newB.y === seg.b.y
+      old.a.x !== nw.a.x ||
+      old.a.y !== nw.a.y ||
+      old.b.x !== nw.b.x ||
+      old.b.y !== nw.b.y
     ) {
-      return seg
+      wallChanged = true
+      break
     }
-    wallChanged = true
-    return { ...seg, a: newA, b: newB }
-  })
+  }
 
   let devChanged = false
   const nextDevices = fl.plan.devices.map((d) => {
@@ -320,23 +368,35 @@ function applyMovePlanSelectionByDelta(
 
   return touch(
     wallChanged
-      ? syncPlanWallSheetLabelsForActiveFloor(mapped, s.activeFloorId)
+      ? reconcileFloorTopologyInProject(mapped, s.activeFloorId)
       : mapped,
   )
 }
 
-/** Relink plan-derived names (`L{level}_n`) after segment add/remove/move or full sync. */
-function syncPlanWallSheetLabelsForActiveFloor(
+/**
+ * Recompute auto-rooms + per-face wall sheets for one floor, then refresh derived
+ * labels (`L{lvl}_{idx}_<roomSlug>`). Run after any wall geometry change so the
+ * room set, paired sheets, and shared openings stay consistent.
+ */
+function reconcileFloorTopologyInProject(
   project: PlanstudioProject,
-  activeFloorId: string | null,
+  floorId: string | null,
 ): PlanstudioProject {
-  const fid = activeFloorId ?? project.floors[0]!.id
-  return {
-    ...project,
-    floors: project.floors.map((fl) =>
-      fl.id === fid ? syncFloorWallsFromPlan(fl, project.floors) : fl,
-    ),
-  }
+  const fid = floorId ?? project.floors[0]!.id
+  const floors = project.floors.map((fl) =>
+    fl.id === fid ? reconcileFloorWallTopology(fl, project.floors) : fl,
+  )
+  return { ...project, floors }
+}
+
+/** Reconcile every floor — used at project load / replace to bring legacy data forward. */
+function reconcileAllFloorTopologyInProject(
+  project: PlanstudioProject,
+): PlanstudioProject {
+  const floors = project.floors.map((fl, _i, arr) =>
+    reconcileFloorWallTopology(fl, arr),
+  )
+  return { ...project, floors }
 }
 
 export type WallDeviceSelection = { wallSheetId: string; deviceId: string }
@@ -374,6 +434,11 @@ export type ProjectStore = {
   setActiveFloorId: (id: string) => void
   addFloorLevel: () => void
   removeFloorLevel: (id: string) => void
+  /** Sidebar / tab name for a floor (`FloorLevel.label`, not the plan canvas title). */
+  setFloorLevelLabel: (floorId: string, label: string) => void
+  duplicateFloorLevel: (id: string) => void
+  /** Move one step in the ordered floor list (`sortOrder` swap with neighbor). */
+  moveFloorLevel: (id: string, direction: 'up' | 'down') => void
   setProjectName: (name: string) => void
   /** Replace bus lines and prune stale `knxLineId` refs on devices + panel slots. */
   setKnxLines: (lines: KnxLine[]) => void
@@ -396,6 +461,8 @@ export type ProjectStore = {
   setWallDrawAngleInput: (v: string) => void
   commitWallFromNumericDraft: () => void
   removePlanRegion: (id: string) => void
+  /** Rename / change label of a `PlanRegion`. Auto-rooms keep their `wallCycleSignature`; the next reconcile updates wall labels (`L0_12_<roomSlug>`). */
+  updatePlanRegionLabel: (id: string, label: string) => void
   setSelectionFloorDevice: (id: string | null) => void
   setSelectionFloorDevices: (ids: string[]) => void
   setSelectedWallSegmentId: (id: string | null) => void
@@ -416,6 +483,15 @@ export type ProjectStore = {
   moveWallSegment: (id: string, deltaM: PointM) => void
   /** Move several wall segments by the same delta (m); one undo step. */
   moveWallSegmentsByDelta: (ids: string[], deltaM: PointM) => void
+  /**
+   * Move one endpoint of a plan wall segment (`a` or `b`). Point is snapped to the grid
+   * and clamped to the floor plan; rejects moves that collapse the segment.
+   */
+  setWallSegmentEndpoint: (
+    id: string,
+    endpoint: 'a' | 'b',
+    pointM: PointM,
+  ) => void
   /**
    * Move endpoint `b` from anchor `a` using length + angle (degrees from +X).
    * Snaps `b` to the grid; updates linked wall sheet `lengthM`.
@@ -608,6 +684,81 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         },
       )
     }),
+
+  setFloorLevelLabel: (floorId, label) =>
+    set((s) =>
+      projectMutation(
+        s,
+        touch({
+          ...s.project,
+          floors: s.project.floors.map((f) =>
+            f.id === floorId ? { ...f, label: label.trim() || f.label } : f,
+          ),
+        }),
+      ),
+    ),
+
+  duplicateFloorLevel: (id) =>
+    set((s) => {
+      const src = s.project.floors.find((f) => f.id === id)
+      if (!src) return s
+      const { floor: clonedBase, floorDeviceIdMap, wallDeviceIdMap } = cloneFloorWithNewIds(src)
+      const nameBase = `${src.label.trim()} copy`
+      const newLabel = uniqueFloorLevelLabel(s.project.floors, nameBase)
+      const cloned = { ...clonedBase, label: newLabel }
+
+      const sorted = [...s.project.floors].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id),
+      )
+      const srcIdx = sorted.findIndex((f) => f.id === id)
+      const newOrder =
+        srcIdx < 0
+          ? [...sorted, cloned]
+          : [...sorted.slice(0, srcIdx + 1), cloned, ...sorted.slice(srcIdx + 1)]
+      const floors = newOrder.map((f, i) => ({ ...f, sortOrder: i }))
+
+      const devRemap = new Map([...floorDeviceIdMap, ...wallDeviceIdMap])
+      const extraPatch = s.project.rack.patchPanelLinks
+        .filter((l) => devRemap.has(l.deviceId))
+        .map((l) => ({ ...l, deviceId: devRemap.get(l.deviceId)! }))
+
+      return projectMutation(
+        s,
+        touch({
+          ...s.project,
+          floors,
+          rack: {
+            ...s.project.rack,
+            patchPanelLinks: [...s.project.rack.patchPanelLinks, ...extraPatch],
+          },
+        }),
+        {
+          activeFloorId: cloned.id,
+          activeWallId: cloned.wallSheets[0]?.id ?? null,
+          ...defaultUi(),
+        },
+      )
+    }),
+
+  moveFloorLevel: (id, direction) =>
+    set((s) => {
+      const sorted = [...s.project.floors].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id),
+      )
+      const idx = sorted.findIndex((f) => f.id === id)
+      if (idx < 0) return s
+      const j = direction === 'up' ? idx - 1 : idx + 1
+      if (j < 0 || j >= sorted.length) return s
+      const a = sorted[idx]!
+      const b = sorted[j]!
+      const floors = s.project.floors.map((f) => {
+        if (f.id === a.id) return { ...f, sortOrder: b.sortOrder }
+        if (f.id === b.id) return { ...f, sortOrder: a.sortOrder }
+        return f
+      })
+      return projectMutation(s, touch({ ...s.project, floors }))
+    }),
+
   setProjectName: (name) =>
     set((s) => projectMutation(s, touch({ ...s.project, name }))),
 
@@ -785,6 +936,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       ),
     })),
 
+  updatePlanRegionLabel: (id, label) =>
+    set((s) => {
+      const trimmed = label.trim()
+      if (trimmed.length === 0) return s
+      const stage1 = mapFloors(s, (fl) => ({
+        ...fl,
+        plan: {
+          ...fl.plan,
+          regions: fl.plan.regions.map((r) =>
+            r.id === id ? { ...r, label: trimmed } : r,
+          ),
+        },
+      }))
+      // Reconcile so plan-linked wall sheet labels (which embed the room slug)
+      // update when the user renames a room.
+      const next = touch(reconcileFloorTopologyInProject(stage1, s.activeFloorId))
+      return projectMutation(s, next)
+    }),
+
   setSelectionFloorDevice: (selectionFloorDeviceId) =>
     set({
       selectionFloorDeviceId,
@@ -897,29 +1067,39 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   addWallSegment: (a, b) =>
     set((s) => {
-      const seg: WallSegment = { id: nanoid(), a, b }
-      let newSheetId: string | null = null
-      const nextProject = touch(
-        syncPlanWallSheetLabelsForActiveFloor(
-          mapFloors(s, (fl) => {
-            const existingSegs = fl.plan.wallSegments ?? []
-            const nextPlan = {
-              ...fl.plan,
-              wallSegments: [...existingSegs, seg],
-            }
-            const flForNew: FloorLevel = { ...fl, plan: nextPlan }
-            const sheet = newWallSheetForSegment(
-              seg,
-              { ...flForNew, wallSheets: fl.wallSheets },
-              s.project.floors,
-            )
-            newSheetId = sheet.id
-            return { ...fl, plan: nextPlan, wallSheets: [...fl.wallSheets, sheet] }
-          }),
-          s.activeFloorId,
-        ),
-      )
-      return projectMutation(s, nextProject, { activeWallId: newSheetId })
+      const targetFloorId = s.activeFloorId ?? s.project.floors[0]!.id
+      const fl = s.project.floors.find((f) => f.id === targetFloorId)
+      if (!fl) return s
+      const grid = s.project.editorSettings.snapGridM
+      const wm = fl.plan.widthM
+      const dm = fl.plan.depthM
+      const clampPt = (p: PointM) => ({
+        x: Math.min(wm, Math.max(0, p.x)),
+        y: Math.min(dm, Math.max(0, p.y)),
+      })
+      const segs = fl.plan.wallSegments ?? []
+      const a1 = snapWallPointToPlanGeometry(snapMeters(clampPt(a), grid), segs, {})
+      const b1 = snapWallPointToPlanGeometry(snapMeters(clampPt(b), grid), segs, {})
+      const minLen = 0.02
+      if (Math.hypot(a1.x - b1.x, a1.y - b1.y) < minLen) return s
+
+      const seg: WallSegment = { id: nanoid(), a: a1, b: b1 }
+      const stage1 = mapFloors(s, (fli) => ({
+        ...fli,
+        plan: {
+          ...fli.plan,
+          wallSegments: [...(fli.plan.wallSegments ?? []), seg],
+        },
+      }))
+      const reconciled = reconcileFloorTopologyInProject(stage1, targetFloorId)
+      const nextProject = touch(reconciled)
+      const flNext = nextProject.floors.find((f) => f.id === targetFloorId)
+      // After reconcile a new segment has either one or two sheets — pick the first
+      // so the wall list highlights the user's brand-new wall.
+      const newSheet = flNext?.wallSheets.find((w) => w.wallSegmentId === seg.id)
+      return projectMutation(s, nextProject, {
+        activeWallId: newSheet?.id ?? s.activeWallId,
+      })
     }),
 
   removeWallSegments: (ids) => {
@@ -935,10 +1115,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const removeSet = new Set(removeIds)
       let needsConfirm = false
       for (const id of removeIds) {
-        const linked = fl.wallSheets.find((w) => w.wallSegmentId === id)
+        const linkedSheets = fl.wallSheets.filter((w) => w.wallSegmentId === id)
         if (
-          linked &&
-          (linked.devices.length > 0 || (linked.openings?.length ?? 0) > 0)
+          linkedSheets.some(
+            (l) => l.devices.length > 0 || (l.openings?.length ?? 0) > 0,
+          )
         ) {
           needsConfirm = true
           break
@@ -954,39 +1135,38 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       ) {
         return s
       }
-      const nextProject = touch(
-        syncPlanWallSheetLabelsForActiveFloor(
-          mapFloors(s, (fli) => {
-            if (fli.id !== targetFloorId) return fli
-            let cleared: FloorLevel = fli
-            for (const id of removeIds) {
-              const ws = cleared.wallSheets.find((w) => w.wallSegmentId === id)
-              if (ws) {
-                const devIds = new Set(ws.devices.map((d) => d.id))
-                cleared = clearPlanLinksToWallDeviceIds(cleared, devIds)
-                cleared = {
-                  ...cleared,
-                  plan: {
-                    ...cleared.plan,
-                    wallSegments: cleared.plan.wallSegments.filter((w) => w.id !== id),
-                  },
-                  wallSheets: cleared.wallSheets.filter((w) => w.id !== ws.id),
-                }
-              } else {
-                cleared = {
-                  ...cleared,
-                  plan: {
-                    ...cleared.plan,
-                    wallSegments: cleared.plan.wallSegments.filter((w) => w.id !== id),
-                  },
-                }
-              }
+      const stage1 = mapFloors(s, (fli) => {
+        if (fli.id !== targetFloorId) return fli
+        let cleared: FloorLevel = fli
+        for (const id of removeIds) {
+          // Collect device ids from every face sharing this segment so plan→wall
+          // links don't dangle after the segment (and its faces) are removed.
+          const sheets = cleared.wallSheets.filter((w) => w.wallSegmentId === id)
+          if (sheets.length > 0) {
+            const devIds = new Set<string>()
+            for (const ws of sheets) for (const d of ws.devices) devIds.add(d.id)
+            cleared = clearPlanLinksToWallDeviceIds(cleared, devIds)
+            cleared = {
+              ...cleared,
+              plan: {
+                ...cleared.plan,
+                wallSegments: cleared.plan.wallSegments.filter((w) => w.id !== id),
+              },
+              wallSheets: cleared.wallSheets.filter((w) => w.wallSegmentId !== id),
             }
-            return cleared
-          }),
-          s.activeFloorId,
-        ),
-      )
+          } else {
+            cleared = {
+              ...cleared,
+              plan: {
+                ...cleared.plan,
+                wallSegments: cleared.plan.wallSegments.filter((w) => w.id !== id),
+              },
+            }
+          }
+        }
+        return cleared
+      })
+      const nextProject = touch(reconcileFloorTopologyInProject(stage1, s.activeFloorId))
       const nws = nextProject.floors.find((f) => f.id === targetFloorId)!.wallSheets
       const nextActive =
         s.activeWallId && nws.some((w) => w.id === s.activeWallId)
@@ -1031,31 +1211,32 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         { x: seg.b.x + deltaM.x, y: seg.b.y + deltaM.y },
         grid,
       )
+      const tentative = new Map<string, { a: PointM; b: PointM }>([
+        [id, { a: newA, b: newB }],
+      ])
+      const nextSegments = snapMovedWallEndpointsToPlan(fl, new Set([id]), tentative)
+      const nextSeg = nextSegments.find((w) => w.id === id)
+      if (!nextSeg) return s
       if (
-        newA.x === seg.a.x &&
-        newA.y === seg.a.y &&
-        newB.x === seg.b.x &&
-        newB.y === seg.b.y
+        nextSeg.a.x === seg.a.x &&
+        nextSeg.a.y === seg.a.y &&
+        nextSeg.b.x === seg.b.x &&
+        nextSeg.b.y === seg.b.y
       ) {
         return s
       }
-      const nextSeg: WallSegment = { ...seg, a: newA, b: newB }
+      const stage1 = mapFloors(s, (fli) => {
+        if (fli.id !== floorId) return fli
+        return {
+          ...fli,
+          plan: {
+            ...fli.plan,
+            wallSegments: nextSegments,
+          },
+        }
+      })
       const nextProject = touch(
-        syncPlanWallSheetLabelsForActiveFloor(
-          mapFloors(s, (fli) => {
-            if (fli.id !== floorId) return fli
-            return {
-              ...fli,
-              plan: {
-                ...fli.plan,
-                wallSegments: fli.plan.wallSegments.map((w) =>
-                  w.id === id ? nextSeg : w,
-                ),
-              },
-            }
-          }),
-          s.activeFloorId,
-        ),
+        reconcileFloorTopologyInProject(stage1, s.activeFloorId),
       )
       return projectMutation(s, nextProject)
     }),
@@ -1065,6 +1246,70 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const next = applyMovePlanSelectionByDelta(s, ids, [], deltaM)
       if (!next) return s
       return projectMutation(s, next)
+    }),
+
+  setWallSegmentEndpoint: (id, endpoint, pointM) =>
+    set((s) => {
+      const floorId = s.activeFloorId ?? s.project.floors[0]!.id
+      const fl = s.project.floors.find((f) => f.id === floorId)
+      if (!fl) return s
+      const seg = fl.plan.wallSegments.find((x) => x.id === id)
+      if (!seg) return s
+      const grid = s.project.editorSettings.snapGridM
+      const wm = fl.plan.widthM
+      const dm = fl.plan.depthM
+      const clamped = {
+        x: Math.min(wm, Math.max(0, pointM.x)),
+        y: Math.min(dm, Math.max(0, pointM.y)),
+      }
+      const snapped = snapMeters(clamped, grid)
+      const lifted = fl.plan.wallSegments.map((w) =>
+        w.id === id
+          ? {
+              ...w,
+              ...(endpoint === 'a' ? { a: snapped } : { b: snapped }),
+            }
+          : w,
+      )
+      const geomSnapped = snapWallPointToPlanGeometry(snapped, lifted, {
+        ignoreSegmentId: id,
+        ignoreVertex: endpoint,
+      })
+      const other = endpoint === 'a' ? seg.b : seg.a
+      const minLen = 0.02
+      if (Math.hypot(geomSnapped.x - other.x, geomSnapped.y - other.y) < minLen) {
+        return s
+      }
+      const nextSeg: WallSegment =
+        endpoint === 'a'
+          ? { ...seg, a: geomSnapped, b: { ...seg.b } }
+          : { ...seg, a: { ...seg.a }, b: geomSnapped }
+      if (
+        nextSeg.a.x === seg.a.x &&
+        nextSeg.a.y === seg.a.y &&
+        nextSeg.b.x === seg.b.x &&
+        nextSeg.b.y === seg.b.y
+      ) {
+        return s
+      }
+      const stage1 = mapFloors(s, (fli) => {
+        if (fli.id !== floorId) return fli
+        const nextPlan = {
+          ...fli.plan,
+          wallSegments: fli.plan.wallSegments.map((w) =>
+            w.id === id ? nextSeg : w,
+          ),
+        }
+        return syncLinkedWallSheetLengthForSegment(
+          { ...fli, plan: nextPlan },
+          id,
+          nextSeg,
+        )
+      })
+      const nextProject = touch(
+        reconcileFloorTopologyInProject(stage1, s.activeFloorId),
+      )
+      return projectMutation(s, nextProject)
     }),
 
   movePlanSelectionByDelta: (wallSegmentIds, floorDeviceIds, deltaM) =>
@@ -1097,25 +1342,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       b = snapMeters(b, s.project.editorSettings.snapGridM)
       if (b.x === anchor.x && b.y === anchor.y) return s
       const nextSeg: WallSegment = { ...seg, a: anchor, b }
+      const stage1 = mapFloors(s, (fli) => {
+        if (fli.id !== floorId) return fli
+        const nextPlan = {
+          ...fli.plan,
+          wallSegments: fli.plan.wallSegments.map((w) =>
+            w.id === id ? nextSeg : w,
+          ),
+        }
+        const withLen = syncLinkedWallSheetLengthForSegment(
+          { ...fli, plan: nextPlan },
+          id,
+          nextSeg,
+        )
+        return withLen
+      })
       const nextProject = touch(
-        syncPlanWallSheetLabelsForActiveFloor(
-          mapFloors(s, (fli) => {
-            if (fli.id !== floorId) return fli
-            const nextPlan = {
-              ...fli.plan,
-              wallSegments: fli.plan.wallSegments.map((w) =>
-                w.id === id ? nextSeg : w,
-              ),
-            }
-            const withLen = syncLinkedWallSheetLengthForSegment(
-              { ...fli, plan: nextPlan },
-              id,
-              nextSeg,
-            )
-            return withLen
-          }),
-          s.activeFloorId,
-        ),
+        reconcileFloorTopologyInProject(stage1, s.activeFloorId),
       )
       return projectMutation(s, nextProject)
     }),
@@ -1294,37 +1537,57 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const ws = fl?.wallSheets.find((w) => w.id === id)
       if (!fl || !ws) return s
       const hasSeg = Boolean(ws.wallSegmentId)
-      if (ws.devices.length > 0 || (ws.openings?.length ?? 0) > 0 || hasSeg) {
-        const hasContent = ws.devices.length > 0 || (ws.openings?.length ?? 0) > 0
+      // Removing one face of a plan-linked wall would just be recreated by the next
+      // topology reconcile, so treat sheet-remove as "remove the underlying segment too"
+      // (which removes both faces). Custom (non plan-linked) sheets remove standalone.
+      const sheetsForSegment = ws.wallSegmentId
+        ? fl.wallSheets.filter((w) => w.wallSegmentId === ws.wallSegmentId)
+        : []
+      const allDevsOnSegment = sheetsForSegment.flatMap((w) => w.devices)
+      const allOpsOnSegment = sheetsForSegment.flatMap((w) => w.openings ?? [])
+      if (
+        ws.devices.length > 0 ||
+        (ws.openings?.length ?? 0) > 0 ||
+        hasSeg
+      ) {
+        const hasContent = hasSeg
+          ? allDevsOnSegment.length > 0 || allOpsOnSegment.length > 0
+          : ws.devices.length > 0 || (ws.openings?.length ?? 0) > 0
         const msg = hasContent
           ? 'Remove this wall? Wall openings and wall-mounted devices on it will be deleted and any floor device links to them will be cleared' +
-            (hasSeg ? ', and the matching plan wall segment will be removed.' : '.')
-          : 'Remove this plan-linked wall? The matching floor plan segment will be removed too.'
+            (hasSeg ? ', and the matching plan wall segment (both faces) will be removed.' : '.')
+          : 'Remove this plan-linked wall? The matching floor plan segment will be removed too (both faces).'
         if (!window.confirm(msg)) {
           return s
         }
       }
-      const devIds = new Set(ws.devices.map((d) => d.id))
+      const devIds = new Set<string>()
+      if (hasSeg) {
+        for (const w of sheetsForSegment) for (const d of w.devices) devIds.add(d.id)
+      } else {
+        for (const d of ws.devices) devIds.add(d.id)
+      }
       const segId = ws.wallSegmentId
+      const stage1 = mapFloors(s, (fli) => {
+        if (fli.id !== targetFloorId) return fli
+        const cleared = clearPlanLinksToWallDeviceIds(fli, devIds)
+        return {
+          ...cleared,
+          plan: segId
+            ? {
+                ...cleared.plan,
+                wallSegments: cleared.plan.wallSegments.filter((w) => w.id !== segId),
+              }
+            : cleared.plan,
+          // For plan-linked sheets: removing the segment removes every face.
+          // For custom sheets: only the targeted sheet is removed.
+          wallSheets: segId
+            ? cleared.wallSheets.filter((w) => w.wallSegmentId !== segId)
+            : cleared.wallSheets.filter((w) => w.id !== id),
+        }
+      })
       const nextProject = touch(
-        syncPlanWallSheetLabelsForActiveFloor(
-          mapFloors(s, (fli) => {
-            if (fli.id !== targetFloorId) return fli
-            if (!fli.wallSheets.some((w) => w.id === id)) return fli
-            const cleared = clearPlanLinksToWallDeviceIds(fli, devIds)
-            return {
-              ...cleared,
-              plan: segId
-                ? {
-                    ...cleared.plan,
-                    wallSegments: cleared.plan.wallSegments.filter((w) => w.id !== segId),
-                  }
-                : cleared.plan,
-              wallSheets: cleared.wallSheets.filter((w) => w.id !== id),
-            }
-          }),
-          s.activeFloorId,
-        ),
+        reconcileFloorTopologyInProject(stage1, s.activeFloorId),
       )
       const nws = activeLevel(nextProject, s.activeFloorId).wallSheets
       const nextActive = s.activeWallId === id ? nws[0]?.id ?? null : s.activeWallId
@@ -1341,7 +1604,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set((s) =>
       projectMutation(
         s,
-        touch(mapFloors(s, (fl) => syncFloorWallsFromPlan(fl, s.project.floors))),
+        touch(
+          reconcileAllFloorTopologyInProject(
+            mapFloors(s, (fl) => syncFloorWallsFromPlan(fl, s.project.floors)),
+          ),
+        ),
       ),
     ),
 
@@ -1351,9 +1618,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const fl = s.project.floors.find(
         (f) => f.id === (s.activeFloorId ?? s.project.floors[0]!.id),
       )
-      const sheet = fl?.wallSheets.find((w) => w.wallSegmentId === wallSegmentId)
-      if (!sheet) return s
-      return { activeWallId: sheet.id }
+      const list = fl?.wallSheets.filter((w) => w.wallSegmentId === wallSegmentId) ?? []
+      if (list.length === 0) return s
+      const regions = fl?.plan.regions ?? []
+      const roomLabel = (w: WallSheet) => {
+        const r = w.roomRegionId ? regions.find((x) => x.id === w.roomRegionId) : undefined
+        return (r?.label ?? w.label).toLowerCase()
+      }
+      const sorted = [...list].sort(
+        (a, b) => roomLabel(a).localeCompare(roomLabel(b)) || a.id.localeCompare(b.id),
+      )
+      return { activeWallId: sorted[0]!.id }
     })
   },
 
@@ -1582,12 +1857,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               id: newId,
               ...newWallOpeningMeters(ws, kind, xM, zM),
             }
-            return {
-              ...fl,
-              wallSheets: fl.wallSheets.map((w) =>
-                w.id === wallId ? { ...w, openings: [...w.openings, o] } : w,
-              ),
-            }
+            // Propagate to every sheet on the same plan segment whose chord overlaps.
+            return insertGroupedOpening(fl, wallId, o)
           }),
         ),
         { selectionWallOpening: { wallSheetId: wallId, openingId: newId } },
@@ -1603,20 +1874,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             const ws = fl.wallSheets.find((w) => w.id === wallId)
             const o = ws?.openings.find((x) => x.id === openingId)
             if (!ws || !o) return fl
-            const next = clampWallOpeningMeters(ws, { ...o, xM, zM })
-            return {
-              ...fl,
-              wallSheets: fl.wallSheets.map((w) =>
-                w.id === wallId
-                  ? {
-                      ...w,
-                      openings: w.openings.map((op) =>
-                        op.id === openingId ? next : op,
-                      ),
-                    }
-                  : w,
-              ),
-            }
+            const clamped = clampWallOpeningMeters(ws, { ...o, xM, zM })
+            return updateGroupedOpening(fl, wallId, openingId, {
+              xM: clamped.xM,
+              zM: clamped.zM,
+              widthM: clamped.widthM,
+              heightM: clamped.heightM,
+              label: clamped.label,
+            })
           }),
         ),
       ),
@@ -1632,14 +1897,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       return projectMutation(
         s,
         touch(
-          mapFloors(s, (fl) => ({
-            ...fl,
-            wallSheets: fl.wallSheets.map((w) =>
-              w.id === wallId
-                ? { ...w, openings: w.openings.filter((o) => o.id !== openingId) }
-                : w,
-            ),
-          })),
+          mapFloors(s, (fl) => removeGroupedOpening(fl, wallId, openingId)),
         ),
         clear,
       )
@@ -2236,9 +2494,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadProject: (raw) => {
     let project: PlanstudioProject
     try {
-      // After schema validation + defaults, align plan-linked wall sheet names with
-      // `derivedPlanWallCode` (safe on any JSON load / reopen, not just first import).
-      project = syncAllPlanWallSheetLabels(normalizeProject(raw))
+      // After schema validation + defaults, reconcile auto-room topology and align
+      // plan-linked wall sheet names (safe on any JSON load / reopen, not just first import).
+      project = syncAllPlanWallSheetLabels(
+        reconcileAllFloorTopologyInProject(normalizeProject(raw)),
+      )
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not load project file.'
       window.alert(msg)
@@ -2257,7 +2517,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   replaceProjectFromImport: (project) => {
-    const next = touch(syncAllPlanWallSheetLabels(project))
+    const next = touch(
+      syncAllPlanWallSheetLabels(reconcileAllFloorTopologyInProject(project)),
+    )
     runWithoutHistory(() => {
       set({
         project: next,

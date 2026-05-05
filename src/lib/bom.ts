@@ -55,7 +55,10 @@ export type BuiltBom = {
 }
 
 /** Patio first, then room, then other, else unassigned. */
-function roomBucketForPoint(p: PointM, regions: PlanRegion[]): { key: string; name: string } {
+export function roomBucketForPoint(
+  p: PointM,
+  regions: PlanRegion[],
+): { key: string; name: string } {
   for (const r of regions) {
     if (r.kind === 'patio' && pointInPolygon(p, r.vertices)) {
       return { key: `patio:${r.id}`, name: (r.label.trim() || 'Patio') + ' (patio)' }

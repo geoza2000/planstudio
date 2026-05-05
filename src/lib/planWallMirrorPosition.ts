@@ -33,7 +33,10 @@ function pointOnSegmentClamped(seg: { a: PointM; b: PointM }, t01: number): Poin
  */
 export function worldXYForWallMirrorOnPlan(
   fl: FloorLevel,
-  wallSheet: Pick<WallSheet, 'wallSegmentId' | 'lengthM'>,
+  wallSheet: Pick<
+    WallSheet,
+    'wallSegmentId' | 'lengthM' | 'wallFace' | 'planSpanAlongSegment01'
+  >,
   xM: number,
 ): PointM {
   const segments = fl.plan.wallSegments ?? []
@@ -73,11 +76,17 @@ export function worldXYForWallMirrorOnPlan(
   }
 
   const L = segmentLengthM(seg.a, seg.b)
+  const span = wallSheet.planSpanAlongSegment01 ?? { t0: 0, t1: 1 }
   const lenRef =
-    wallSheet.lengthM > 0 && Number.isFinite(wallSheet.lengthM) ? wallSheet.lengthM : L
-  const u = lenRef > 1e-9 ? Math.min(1, Math.max(0, xM / lenRef)) : 0.5
-  const core = pointOnSegmentClamped(seg, u)
-  const n = unitNormalLeftOfSegment(seg)
+    wallSheet.lengthM > 0 && Number.isFinite(wallSheet.lengthM)
+      ? wallSheet.lengthM
+      : Math.max((span.t1 - span.t0) * L, 1e-9)
+  const f = lenRef > 1e-9 ? Math.min(1, Math.max(0, xM / lenRef)) : 0.5
+  const uSeg = span.t0 + f * (span.t1 - span.t0)
+  const core = pointOnSegmentClamped(seg, uSeg)
+  const nBase = unitNormalLeftOfSegment(seg)
+  const flip = wallSheet.wallFace === 'b'
+  const n = flip ? { x: -nBase.x, y: -nBase.y } : nBase
   return {
     x: core.x + n.x * READABILITY_NORMAL_OFFSET_M,
     y: core.y + n.y * READABILITY_NORMAL_OFFSET_M,
@@ -91,7 +100,10 @@ export function worldXYForWallMirrorOnPlan(
  */
 export function along01ForWallMirrorOnPlan(
   fl: FloorLevel,
-  wallSheet: Pick<WallSheet, 'wallSegmentId' | 'lengthM'>,
+  wallSheet: Pick<
+    WallSheet,
+    'wallSegmentId' | 'lengthM' | 'planSpanAlongSegment01'
+  >,
   xM: number,
 ): number | null {
   const segments = fl.plan.wallSegments ?? []
@@ -103,7 +115,11 @@ export function along01ForWallMirrorOnPlan(
   if (!seg) return null
 
   const L = segmentLengthM(seg.a, seg.b)
+  const span = wallSheet.planSpanAlongSegment01 ?? { t0: 0, t1: 1 }
   const lenRef =
-    wallSheet.lengthM > 0 && Number.isFinite(wallSheet.lengthM) ? wallSheet.lengthM : L
-  return lenRef > 1e-9 ? Math.min(1, Math.max(0, xM / lenRef)) : 0.5
+    wallSheet.lengthM > 0 && Number.isFinite(wallSheet.lengthM)
+      ? wallSheet.lengthM
+      : Math.max((span.t1 - span.t0) * L, 1e-9)
+  const f = lenRef > 1e-9 ? Math.min(1, Math.max(0, xM / lenRef)) : 0.5
+  return span.t0 + f * (span.t1 - span.t0)
 }

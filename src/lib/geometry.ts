@@ -1,4 +1,4 @@
-import type { FloorPlan, PointM } from '../types/project'
+import type { FloorPlan, PointM, WallSegment } from '../types/project'
 
 export function snapMeters(p: PointM, gridM: number): PointM {
   const g = Math.max(0.001, gridM)
@@ -148,4 +148,69 @@ export function pointInPolygon(p: PointM, vertices: PointM[]): boolean {
     if (intersect) inside = !inside
   }
   return inside
+}
+
+const WALL_SEG_LEN2_EPS = 1e-18
+
+/** Default snap radius (m) to other wall **vertices** when drawing or editing. */
+export const SNAP_PLAN_WALL_ENDPOINT_M = 0.25
+/** Default snap radius (m) to nearest point along another wall **edge**. */
+export const SNAP_PLAN_WALL_EDGE_M = 0.22
+
+/** Closest point on segment `a`→`b` (clamped) to `p`. */
+export function closestPointOnWallSegment(p: PointM, a: PointM, b: PointM): PointM {
+  const ax = b.x - a.x
+  const ay = b.y - a.y
+  const len2 = ax * ax + ay * ay
+  if (len2 < WALL_SEG_LEN2_EPS) return { x: a.x, y: a.y }
+  let t = ((p.x - a.x) * ax + (p.y - a.y) * ay) / len2
+  t = Math.max(0, Math.min(1, t))
+  return { x: a.x + t * ax, y: a.y + t * ay }
+}
+
+export type SnapWallPointOpts = {
+  toleranceEndpointM?: number
+  toleranceEdgeM?: number
+  /** Segment id whose geometry is partially excluded (moving one of its endpoints). */
+  ignoreSegmentId?: string
+  /** Do not use this vertex of `ignoreSegmentId` as an endpoint snap target. */
+  ignoreVertex?: 'a' | 'b'
+}
+
+/**
+ * Snap `p` to the nearest other wall vertex or to a point along another wall edge, when
+ * within tolerance. Call after grid snap; tolerances are in meters.
+ */
+export function snapWallPointToPlanGeometry(
+  p: PointM,
+  segments: WallSegment[],
+  opts: SnapWallPointOpts = {},
+): PointM {
+  const tolE = opts.toleranceEndpointM ?? SNAP_PLAN_WALL_ENDPOINT_M
+  const tolEd = opts.toleranceEdgeM ?? SNAP_PLAN_WALL_EDGE_M
+  const ignId = opts.ignoreSegmentId
+  const ignVx = opts.ignoreVertex
+
+  let best: PointM = p
+  let bestD = Infinity
+
+  for (const s of segments) {
+    for (const lab of ['a', 'b'] as const) {
+      const q = lab === 'a' ? s.a : s.b
+      if (ignId != null && s.id === ignId && lab === ignVx) continue
+      const d = Math.hypot(p.x - q.x, p.y - q.y)
+      if (d <= tolE && d < bestD - 1e-12) {
+        bestD = d
+        best = { x: q.x, y: q.y }
+      }
+    }
+    if (ignId != null && s.id === ignId) continue
+    const q = closestPointOnWallSegment(p, s.a, s.b)
+    const d = Math.hypot(p.x - q.x, p.y - q.y)
+    if (d <= tolEd && d < bestD - 1e-12) {
+      bestD = d
+      best = { x: q.x, y: q.y }
+    }
+  }
+  return best
 }

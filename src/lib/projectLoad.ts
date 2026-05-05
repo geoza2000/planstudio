@@ -303,7 +303,15 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
     ...fl,
     plan: {
       ...fl.plan,
-      regions: fl.plan.regions ?? [],
+      regions: (() => {
+        const regs = fl.plan.regions ?? []
+        const idSet = new Set(regs.map((r) => r.id))
+        return regs.map((r) => ({
+          ...r,
+          parentRegionId:
+            r.parentRegionId && idSet.has(r.parentRegionId) ? r.parentRegionId : undefined,
+        }))
+      })(),
       devices: fl.plan.devices.map((d) => {
         const migrated = applyDeviceTypeMigration(d as unknown as LooseRecord) as FloorDevice
         const l = migrated as unknown as {

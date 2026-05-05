@@ -2,12 +2,14 @@ import Konva from 'konva'
 import type { Stage as KonvaStage } from 'konva/lib/Stage'
 import {
   forwardRef,
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
   type DragEventHandler,
+  type ReactNode,
 } from 'react'
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
 import { DND_DEVICE_TEMPLATE } from '../lib/deviceCatalog'
@@ -25,10 +27,11 @@ import {
   wallSegmentStableIndexMap,
 } from '../lib/wallPlanSync'
 import { segmentIntersectsAabb } from '../lib/segmentAabb'
+import { snapMeters, snapWallPointToPlanGeometry } from '../lib/geometry'
 import { getKonvaGroupScreenAnchorBelow } from '../lib/konvaScreenAnchor'
 import { deviceFill, deviceGlyph } from '../lib/deviceStyle'
 import { useProjectStore } from '../store/projectStore'
-import { deviceHoverLabel, type PointM } from '../types/project'
+import { deviceHoverLabel, type PlanRegion, type PointM } from '../types/project'
 import type { Node as KonvaNode } from 'konva/lib/Node'
 import { PlanWallOpeningIcon } from './PlanWallOpeningIcon'
 
@@ -40,26 +43,18 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, n))
 }
 
-/** Snap plan point to nearest wall corner when starting/finishing a segment (meters). */
-const SNAP_WALL_ENDPOINT_M = 0.25
-
-function snapWallPointToEndpointsM(
-  p: PointM,
-  segments: { a: PointM; b: PointM }[],
-  toleranceM: number,
-): PointM {
-  let best: PointM | null = null
-  let bestD = toleranceM
-  for (const seg of segments) {
-    for (const q of [seg.a, seg.b]) {
-      const d = Math.hypot(p.x - q.x, p.y - q.y)
-      if (d < bestD) {
-        bestD = d
-        best = q
-      }
-    }
-  }
-  return best ?? p
+/** Translucent fill so room polygons sit visibly under walls without hiding the grid. */
+function roomRegionFill(
+  index: number,
+  kind: 'room' | 'patio' | 'other',
+  opts?: { nested?: boolean },
+): string {
+  if (kind === 'patio') return 'hsla(160, 35%, 45%, 0.18)'
+  if (kind === 'other') return 'hsla(220, 18%, 55%, 0.14)'
+  // 'room' — distinct hue per region using a stable hash by sequence index.
+  const hue = (index * 53) % 360
+  const alpha = opts?.nested ? 0.24 : 0.16
+  return `hsla(${hue}, 45%, 55%, ${alpha})`
 }
 
 export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
@@ -74,6 +69,16 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
       [project.floors, activeFloorId],
     )
     const floor = activeFloor.plan
+    const orderedPlanRegions = useMemo(() => {
+      const regs = [...(floor.regions ?? [])]
+      const zOrder = (r: PlanRegion) => {
+        const auto = r.kind === 'room' && r.wallCycleSignature
+        if (!auto) return 0
+        return r.parentRegionId ? 2 : 1
+      }
+      regs.sort((a, b) => zOrder(a) - zOrder(b) || a.id.localeCompare(b.id))
+      return regs
+    }, [floor.regions])
     const wallPlanLabeling = useMemo(() => {
       const levelIdx = floorLevelSortIndex(project.floors, activeFloor.id)
       const idxMap = wallSegmentStableIndexMap(floor.wallSegments)
@@ -87,24 +92,48 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
     const selectedWallSegmentIds = useProjectStore((s) => s.selectedWallSegmentIds)
     const setSelectedWallSegmentId = useProjectStore((s) => s.setSelectedWallSegmentId)
     const movePlanSelectionByDelta = useProjectStore((s) => s.movePlanSelectionByDelta)
+    const setWallSegmentEndpoint = useProjectStore((s) => s.setWallSegmentEndpoint)
     const selectionFloorDeviceIds = useProjectStore((s) => s.selectionFloorDeviceIds)
     const setSelectionFloorDevices = useProjectStore((s) => s.setSelectionFloorDevices)
     const removeFloorDevices = useProjectStore((s) => s.removeFloorDevices)
+    const updatePlanRegionLabel = useProjectStore((s) => s.updatePlanRegionLabel)
+    const setActiveWallId = useProjectStore((s) => s.setActiveWallId)
+    const setActiveTab = useProjectStore((s) => s.setActiveTab)
 
     const openWallElevationForSegment = useCallback(
-      (wallSegmentId: string) => {
+      (wallSegmentId: string, clientX: number, clientY: number) => {
         const st = useProjectStore.getState()
-        const fl =
+        let fl =
           st.project.floors.find((f) => f.id === st.activeFloorId) ??
           st.project.floors[0]
-        if (
-          fl &&
-          !fl.wallSheets.some((w) => w.wallSegmentId === wallSegmentId)
-        ) {
+        if (fl && !fl.wallSheets.some((w) => w.wallSegmentId === wallSegmentId)) {
           st.syncWallsFromPlan()
+          const st2 = useProjectStore.getState()
+          fl =
+            st2.project.floors.find((f) => f.id === st2.activeFloorId) ??
+            st2.project.floors[0]
         }
-        st.setActiveTab('wall')
-        st.setActiveWallForPlanSegment(wallSegmentId)
+        if (!fl) return
+        const sheets = fl.wallSheets.filter((w) => w.wallSegmentId === wallSegmentId)
+        if (sheets.length <= 1) {
+          st.setActiveTab('wall')
+          st.setActiveWallForPlanSegment(wallSegmentId)
+          return
+        }
+        const regions = fl.plan.regions ?? []
+        const labelFor = (w: { roomRegionId?: string; label: string }) => {
+          const r = w.roomRegionId ? regions.find((x) => x.id === w.roomRegionId) : undefined
+          return r?.label ?? w.label
+        }
+        const sorted = [...sheets].sort(
+          (a, b) => labelFor(a).localeCompare(labelFor(b)) || a.id.localeCompare(b.id),
+        )
+        setWallFacePick({
+          segmentId: wallSegmentId,
+          left: clientX,
+          top: clientY,
+          choices: sorted.map((w) => ({ id: w.id, label: labelFor(w) })),
+        })
       },
       [],
     )
@@ -145,6 +174,18 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
       text: string
       left: number
       top: number
+    } | null>(null)
+    const [regionRename, setRegionRename] = useState<{
+      id: string
+      left: number
+      top: number
+      draft: string
+    } | null>(null)
+    const [wallFacePick, setWallFacePick] = useState<{
+      segmentId: string
+      left: number
+      top: number
+      choices: { id: string; label: string }[]
     } | null>(null)
     const deviceTooltipTimerRef = useRef<number | null>(null)
     const [wallA, setWallA] = useState<PointM | null>(null)
@@ -359,8 +400,22 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
       const stage = stageRef.current
       const anchor = wallARef.current
       if (!p || !stage || !anchor || tool !== 'wall') return
-      setWallRubberBandM(toMeters(stage, p.clientX, p.clientY))
-    }, [tool, toMeters])
+      const grid = project.editorSettings.snapGridM
+      let m = toMeters(stage, p.clientX, p.clientY)
+      m = {
+        x: clamp(m.x, 0, floor.widthM),
+        y: clamp(m.y, 0, floor.depthM),
+      }
+      m = snapWallPointToPlanGeometry(snapMeters(m, grid), floor.wallSegments, {})
+      setWallRubberBandM(m)
+    }, [
+      tool,
+      toMeters,
+      project.editorSettings.snapGridM,
+      floor.widthM,
+      floor.depthM,
+      floor.wallSegments,
+    ])
 
     const onStageMouseMove = useCallback(
       (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -417,7 +472,12 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
 
         let m = toMeters(stage, e.evt.clientX, e.evt.clientY)
         if (tool === 'wall') {
-          m = snapWallPointToEndpointsM(m, floor.wallSegments, SNAP_WALL_ENDPOINT_M)
+          const grid = project.editorSettings.snapGridM
+          m = {
+            x: clamp(m.x, 0, floor.widthM),
+            y: clamp(m.y, 0, floor.depthM),
+          }
+          m = snapWallPointToPlanGeometry(snapMeters(m, grid), floor.wallSegments, {})
         }
 
         if (tool === 'wall') {
@@ -438,7 +498,10 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
       },
       [
         addWallSegment,
+        floor.depthM,
         floor.wallSegments,
+        floor.widthM,
+        project.editorSettings.snapGridM,
         setSelectedWallSegmentId,
         tool,
         toMeters,
@@ -482,9 +545,10 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
           {tool === 'select' && (
             <span>
               Click devices or wall segments; Shift+click to add/remove devices from the
-              selection. Drag on empty plan area to box-select devices. Drag a selected device to
-              move all selected together. Backspace/Delete removes the selection. Drag a template
-              from the palette to add devices.
+              selection. Drag on empty plan area to box-select devices. Double-click a room
+              name to rename it. Drag a selected device to move all selected together.
+              Backspace/Delete removes the selection. Drag a template from the palette to add
+              devices.
             </span>
           )}
         </div>
@@ -569,6 +633,67 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
                 }}
               />
             ) : null}
+            {orderedPlanRegions.map((region, ri) => {
+              if (region.vertices.length < 3) return null
+              const pts: number[] = []
+              for (const v of region.vertices) {
+                pts.push(FLOOR_PADDING_PX + v.x * PPM, FLOOR_PADDING_PX + v.y * PPM)
+              }
+              const cx =
+                region.vertices.reduce((sum, v) => sum + v.x, 0) /
+                region.vertices.length
+              const cy =
+                region.vertices.reduce((sum, v) => sum + v.y, 0) /
+                region.vertices.length
+              const nested = Boolean(region.parentRegionId)
+              const fill = roomRegionFill(ri, region.kind, { nested })
+              const labelText =
+                region.kind === 'room' && nested ? `↳ ${region.label}` : region.label
+              return (
+                <Group
+                  key={region.id}
+                  listening={tool === 'select'}
+                  onMouseDown={(ev) => {
+                    if (tool !== 'select') return
+                    ev.cancelBubble = true
+                    ev.target.getStage()?.container().focus()
+                    const st = useProjectStore.getState()
+                    st.setSelectedWallSegmentId(null)
+                    st.setSelectionFloorDevices([])
+                  }}
+                  onDblClick={(ev) => {
+                    if (tool !== 'select' || region.kind !== 'room') return
+                    ev.cancelBubble = true
+                    setRegionRename({
+                      id: region.id,
+                      left: ev.evt.clientX,
+                      top: ev.evt.clientY,
+                      draft: region.label,
+                    })
+                  }}
+                >
+                  <Line
+                    points={pts}
+                    closed
+                    fill={fill}
+                    stroke={nested ? 'rgba(255,255,255,0.32)' : 'rgba(255,255,255,0.18)'}
+                    strokeWidth={nested ? 1.5 : 1}
+                  />
+                  <Text
+                    x={FLOOR_PADDING_PX + cx * PPM - 60}
+                    y={FLOOR_PADDING_PX + cy * PPM - 8}
+                    width={120}
+                    height={16}
+                    align="center"
+                    verticalAlign="middle"
+                    text={labelText}
+                    fontSize={12}
+                    fill="#e2e8f0"
+                    fontFamily="system-ui, sans-serif"
+                  />
+                </Group>
+              )
+            })}
             {floor.wallSegments.map((seg) => {
               const xa = FLOOR_PADDING_PX + seg.a.x * PPM
               const ya = FLOOR_PADDING_PX + seg.a.y * PPM
@@ -609,7 +734,7 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
                   }}
                   onDblClick={(ev) => {
                     ev.cancelBubble = true
-                    openWallElevationForSegment(seg.id)
+                    openWallElevationForSegment(seg.id, ev.evt.clientX, ev.evt.clientY)
                   }}
                   onDragStart={() => {
                     if (tool !== 'select') return
@@ -686,6 +811,76 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
                 </Group>
               )
             })}
+            {tool === 'select' && selectedWallSegmentIds.length === 1
+              ? (() => {
+                  const selId = selectedWallSegmentIds[0]!
+                  const hseg = floor.wallSegments.find((s) => s.id === selId)
+                  if (!hseg) return null
+                  const wm = floor.widthM
+                  const dm = floor.depthM
+                  const pxLo = FLOOR_PADDING_PX
+                  const pxHiX = FLOOR_PADDING_PX + wm * PPM
+                  const pxHiY = FLOOR_PADDING_PX + dm * PPM
+                  const ax = FLOOR_PADDING_PX + hseg.a.x * PPM
+                  const ay = FLOOR_PADDING_PX + hseg.a.y * PPM
+                  const bx = FLOOR_PADDING_PX + hseg.b.x * PPM
+                  const by = FLOOR_PADDING_PX + hseg.b.y * PPM
+                  const mkEnd = (which: 'a' | 'b', x0: number, y0: number) => (
+                    <Circle
+                      key={`${hseg.id}-${which}`}
+                      x={x0}
+                      y={y0}
+                      radius={9}
+                      fill="rgba(254,240,138,0.95)"
+                      stroke="#0f172a"
+                      strokeWidth={2}
+                      hitStrokeWidth={14}
+                      draggable
+                      dragBoundFunc={(pos) => ({
+                        x: clamp(pos.x, pxLo, pxHiX),
+                        y: clamp(pos.y, pxLo, pxHiY),
+                      })}
+                      onMouseDown={(ev) => {
+                        ev.cancelBubble = true
+                        ev.target.getStage()?.container().focus()
+                        const st = useProjectStore.getState()
+                        st.setSelectionFloorDevices([])
+                      }}
+                      onDragStart={(ev) => {
+                        ev.cancelBubble = true
+                      }}
+                      onDragEnd={(ev) => {
+                        ev.cancelBubble = true
+                        const node = ev.target
+                        const pos = node.position()
+                        const xM = (pos.x - FLOOR_PADDING_PX) / PPM
+                        const yM = (pos.y - FLOOR_PADDING_PX) / PPM
+                        setWallSegmentEndpoint(hseg.id, which, { x: xM, y: yM })
+                        queueMicrotask(() => {
+                          const st = useProjectStore.getState()
+                          const fl =
+                            st.project.floors.find((f) => f.id === st.activeFloorId) ??
+                            st.project.floors[0]
+                          const s2 = fl?.plan.wallSegments.find((w) => w.id === hseg.id)
+                          if (!s2) return
+                          const nx =
+                            FLOOR_PADDING_PX + (which === 'a' ? s2.a.x : s2.b.x) * PPM
+                          const ny =
+                            FLOOR_PADDING_PX + (which === 'a' ? s2.a.y : s2.b.y) * PPM
+                          node.position({ x: nx, y: ny })
+                          node.getLayer()?.batchDraw()
+                        })
+                      }}
+                    />
+                  )
+                  return (
+                    <Fragment key={`${hseg.id}-wall-endpoint-handles`}>
+                      {mkEnd('a', ax, ay)}
+                      {mkEnd('b', bx, by)}
+                    </Fragment>
+                  )
+                })()
+              : null}
             {tool === 'wall' && wallA && wallRubberBandM ? (
               <Line
                 listening={false}
@@ -701,24 +896,30 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
                 lineCap="round"
               />
             ) : null}
-            {activeFloor.wallSheets.flatMap((sheet) => {
-              if (!sheet.wallSegmentId) return []
-              const seg = floor.wallSegments.find((s) => s.id === sheet.wallSegmentId)
-              if (!seg) return []
-              const alongDeg = segmentAngleDegFromPlusX(seg.a, seg.b)
-              return (sheet.openings ?? []).map((o) => {
-                const { x, y } = worldXYForWallMirrorOnPlan(activeFloor, sheet, o.xM)
-                return (
-                  <PlanWallOpeningIcon
-                    key={`${sheet.id}-${o.id}`}
-                    kind={o.kind}
-                    x={FLOOR_PADDING_PX + x * PPM}
-                    y={FLOOR_PADDING_PX + y * PPM}
-                    alongDeg={alongDeg}
-                  />
-                )
-              })
-            })}
+            {(() => {
+              const items: ReactNode[] = []
+              for (const sheet of activeFloor.wallSheets) {
+                if (!sheet.wallSegmentId) continue
+                const seg = floor.wallSegments.find((s) => s.id === sheet.wallSegmentId)
+                if (!seg) continue
+                const alongBase = segmentAngleDegFromPlusX(seg.a, seg.b)
+                const alongDeg = sheet.wallFace === 'b' ? alongBase + 180 : alongBase
+                for (const o of sheet.openings ?? []) {
+                  const k = `${sheet.id}|${o.id}`
+                  const { x, y } = worldXYForWallMirrorOnPlan(activeFloor, sheet, o.xM)
+                  items.push(
+                    <PlanWallOpeningIcon
+                      key={k}
+                      kind={o.kind}
+                      x={FLOOR_PADDING_PX + x * PPM}
+                      y={FLOOR_PADDING_PX + y * PPM}
+                      alongDeg={alongDeg}
+                    />,
+                  )
+                }
+              }
+              return items
+            })()}
             {wallMountPlanClusters.map((cluster) => {
               const cx = FLOOR_PADDING_PX + cluster.worldX * PPM
               const cy = FLOOR_PADDING_PX + cluster.worldY * PPM
@@ -800,7 +1001,7 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
                   }}
                   onDblClick={(ev) => {
                     ev.cancelBubble = true
-                    openWallElevationForSegment(cluster.segmentId)
+                    openWallElevationForSegment(cluster.segmentId, ev.evt.clientX, ev.evt.clientY)
                   }}
                 >
                   <Circle
@@ -1017,6 +1218,97 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
             ) : null}
           </Layer>
         </Stage>
+        {wallFacePick ? (
+          <div
+            role="dialog"
+            aria-label="Choose room face"
+            style={{
+              position: 'fixed',
+              left: wallFacePick.left,
+              top: wallFacePick.top,
+              transform: 'translate(-50%, 8px)',
+              zIndex: 56,
+              minWidth: 200,
+              padding: '10px 12px',
+              borderRadius: 8,
+              border: '1px solid #3d5a80',
+              background: '#151b24',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+              color: '#e8eef4',
+              fontSize: 13,
+              fontFamily: 'system-ui, sans-serif',
+            }}
+          >
+            <div style={{ marginBottom: 8, fontWeight: 600 }}>Edit which room face?</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {wallFacePick.choices.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="btn secondary"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => {
+                    setActiveWallId(c.id)
+                    setActiveTab('wall')
+                    setWallFacePick(null)
+                  }}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="btn ghost"
+              style={{ marginTop: 8, width: '100%' }}
+              onClick={() => setWallFacePick(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : null}
+        {regionRename ? (
+          <input
+            key={regionRename.id}
+            autoFocus
+            value={regionRename.draft}
+            onChange={(e) =>
+              setRegionRename((prev) =>
+                prev ? { ...prev, draft: e.target.value } : prev,
+              )
+            }
+            onBlur={() => {
+              setRegionRename((prev) => {
+                if (!prev) return null
+                const t = prev.draft.trim()
+                if (t.length > 0) updatePlanRegionLabel(prev.id, t)
+                return null
+              })
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+              if (e.key === 'Escape') {
+                e.preventDefault()
+                setRegionRename(null)
+              }
+            }}
+            style={{
+              position: 'fixed',
+              left: regionRename.left,
+              top: regionRename.top,
+              transform: 'translate(-50%, -50%)',
+              zIndex: 55,
+              minWidth: 160,
+              padding: '6px 10px',
+              borderRadius: 6,
+              border: '1px solid #3d5a80',
+              background: '#151b24',
+              color: '#e8eef4',
+              fontSize: 13,
+              fontFamily: 'system-ui, sans-serif',
+            }}
+          />
+        ) : null}
         </div>
         {deviceTooltip ? (
           <div

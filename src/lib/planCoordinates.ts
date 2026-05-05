@@ -57,10 +57,28 @@ export function wallPointerStagePxToMeters(
   heightM: number,
   innerX = WALL_ELEVATION_INNER_X,
   innerY = WALL_ELEVATION_INNER_Y,
+  opts?: { lengthM: number; roomViewFlip: boolean },
 ) {
-  const xM = (xPx - innerX) / PPM
+  let xM = (xPx - innerX) / PPM
+  if (opts?.roomViewFlip) {
+    xM = opts.lengthM - xM
+  }
   const zM = heightM - (yPx - innerY) / PPM
   return { xM, zM }
+}
+
+/**
+ * Map stored `xM` (segment chord, same as paired-face sync) → horizontal distance from
+ * the left edge of the elevation **as seen from inside the room** facing the wall.
+ * `wallFace === 'b'` reverses so the kitchen / “far” side matches the living-room view.
+ */
+export function wallElevationDisplayXM(
+  storedXM: number,
+  lengthM: number,
+  wallFace: 'a' | 'b' | undefined,
+): number {
+  if (wallFace !== 'b' || lengthM <= 0) return storedXM
+  return lengthM - storedXM
 }
 
 export function wallMetersFromWallDeviceDragEnd(
@@ -68,9 +86,13 @@ export function wallMetersFromWallDeviceDragEnd(
   heightM: number,
   innerX = WALL_ELEVATION_INNER_X,
   innerY = WALL_ELEVATION_INNER_Y,
+  opts?: { lengthM: number; roomViewFlip: boolean },
 ) {
   const p = stagePxFromDeviceDragEventTarget(eventTarget)
-  const xM = (p.x - innerX) / PPM
+  let xM = (p.x - innerX) / PPM
+  if (opts?.roomViewFlip) {
+    xM = opts.lengthM - xM
+  }
   const zM = heightM - (p.y - innerY) / PPM
   return { xM, zM }
 }
