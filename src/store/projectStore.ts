@@ -31,6 +31,7 @@ import {
   syncAllPlanWallSheetLabels,
   syncFloorWallsFromPlan,
   syncLinkedWallSheetLengthForSegment,
+  wallSheetChordFromPlanGeometry,
 } from '../lib/wallPlanSync'
 import { cloneFloorWithNewIds } from '../lib/duplicateFloorLevel'
 import { reconcileFloorWallTopology } from '../lib/wallRoomReconcile'
@@ -522,7 +523,10 @@ export type ProjectStore = {
   updateWallSheetMeta: (
     id: string,
     partial: Partial<
-      Pick<WallSheet, 'label' | 'lengthM' | 'heightM' | 'roomRegionId'>
+      Pick<
+        WallSheet,
+        'label' | 'lengthM' | 'heightM' | 'roomRegionId' | 'planSpanAlongSegment01'
+      >
     >,
   ) => void
   removeWallSheet: (id: string) => void
@@ -1510,12 +1514,31 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const fl = activeLevel(s.project, s.activeFloorId)
       const ws = fl.wallSheets.find((w) => w.id === id)
       let applied: Partial<
-        Pick<WallSheet, 'label' | 'lengthM' | 'heightM' | 'roomRegionId'>
+        Pick<
+          WallSheet,
+          'label' | 'lengthM' | 'heightM' | 'roomRegionId' | 'planSpanAlongSegment01'
+        >
       > = partial
       if (ws?.wallSegmentId && 'label' in partial) {
         const { label: _ignored, ...rest } = partial
         applied = rest
         if (Object.keys(rest).length === 0) return s
+      }
+      if (
+        ws?.wallSegmentId &&
+        'roomRegionId' in partial &&
+        !('lengthM' in partial)
+      ) {
+        const merged = { ...ws, ...applied }
+        const seg = fl.plan.wallSegments.find((x) => x.id === merged.wallSegmentId)
+        if (seg) {
+          const { lengthM, planSpanAlongSegment01 } = wallSheetChordFromPlanGeometry(
+            fl,
+            merged,
+            seg,
+          )
+          applied = { ...applied, lengthM, planSpanAlongSegment01 }
+        }
       }
       return projectMutation(
         s,

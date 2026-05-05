@@ -1,5 +1,8 @@
 import { nanoid } from 'nanoid'
 import type { FloorLevel, Id, PointM, PlanstudioProject, WallSegment, WallSheet } from '../types/project'
+import { wallSheetChordFromPlanGeometry } from './wallPlanRoomBoundary'
+
+export { wallSheetChordFromPlanGeometry }
 
 export const DEFAULT_WALL_HEIGHT_M = 2.8
 
@@ -66,18 +69,19 @@ export function readableWallLabelRotationDeg(alongDegFromPlusX: number): number 
   return alongDegFromPlusX
 }
 
-/** Set `lengthM` on every wall sheet linked to this segment (matches plan sync behavior). */
+/** Set `lengthM` + `planSpanAlongSegment01` on every sheet for this segment from each sheet's room chord. */
 export function syncLinkedWallSheetLengthForSegment(
   fl: FloorLevel,
   segmentId: string,
   seg: WallSegment,
 ): FloorLevel {
-  const len = segmentLengthM(seg.a, seg.b)
   return {
     ...fl,
-    wallSheets: fl.wallSheets.map((w) =>
-      w.wallSegmentId === segmentId ? { ...w, lengthM: len } : w,
-    ),
+    wallSheets: fl.wallSheets.map((w) => {
+      if (w.wallSegmentId !== segmentId) return w
+      const { lengthM, planSpanAlongSegment01 } = wallSheetChordFromPlanGeometry(fl, w, seg)
+      return { ...w, lengthM, planSpanAlongSegment01 }
+    }),
   }
 }
 
@@ -176,9 +180,11 @@ export function syncFloorWallsFromPlan(
     const stable = idxMap.get(seg.id)
     const nextLabel =
       stable != null ? derivedPlanWallCode(levelIdx, stable) : w.label
+    const { lengthM, planSpanAlongSegment01 } = wallSheetChordFromPlanGeometry(fl, w, seg)
     return {
       ...w,
-      lengthM: segmentLengthM(seg.a, seg.b),
+      lengthM,
+      planSpanAlongSegment01,
       label: nextLabel,
     }
   })

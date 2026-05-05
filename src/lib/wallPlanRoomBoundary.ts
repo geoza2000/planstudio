@@ -1,7 +1,10 @@
-import type { PointM, WallSegment } from '../types/project'
-import { segmentLengthM } from './wallPlanSync'
+import type { FloorLevel, PointM, WallSegment, WallSheet } from '../types/project'
 
-const TOL_M = 0.004
+const TOL_M = 0.012
+
+function segmentLenM(a: PointM, b: PointM): number {
+  return Math.hypot(b.x - a.x, b.y - a.y)
+}
 
 function pointToSegmentDistanceM(p: PointM, a: PointM, b: PointM): number {
   const lx = b.x - a.x
@@ -50,7 +53,7 @@ export function computeRoomSpanOnSegment(
   seg: WallSegment,
 ): { t0: number; t1: number } {
   if (!regionVertices || regionVertices.length < 2) return { t0: 0, t1: 1 }
-  const L = segmentLengthM(seg.a, seg.b)
+  const L = segmentLenM(seg.a, seg.b)
   if (L < 1e-9) return { t0: 0, t1: 1 }
 
   const intervals: [number, number][] = []
@@ -80,4 +83,25 @@ export function computeRoomSpanOnSegment(
   t1 = Math.max(0, Math.min(1, t1))
   if (t1 - t0 < 1e-4) return { t0: 0, t1: 1 }
   return { t0, t1 }
+}
+
+/**
+ * Visible chord length and segment fraction span for a plan-linked sheet, from the room
+ * polygon (if any) on this floor. Same basis as `reconcileFloorWallTopology` slot `lengthM`.
+ */
+export function wallSheetChordFromPlanGeometry(
+  fl: FloorLevel,
+  ws: Pick<WallSheet, 'roomRegionId' | 'wallSegmentId'>,
+  seg: WallSegment,
+): { lengthM: number; planSpanAlongSegment01: { t0: number; t1: number } } {
+  const fullLen = segmentLenM(seg.a, seg.b)
+  const region = ws.roomRegionId
+    ? (fl.plan.regions ?? []).find((r) => r.id === ws.roomRegionId)
+    : undefined
+  const planSpanAlongSegment01 = computeRoomSpanOnSegment(region?.vertices, seg)
+  const lengthM = Math.max(
+    (planSpanAlongSegment01.t1 - planSpanAlongSegment01.t0) * fullLen,
+    1e-4,
+  )
+  return { lengthM, planSpanAlongSegment01 }
 }
