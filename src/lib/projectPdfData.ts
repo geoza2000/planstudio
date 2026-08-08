@@ -253,41 +253,6 @@ export function aggregateShoppingLines(
   return [...m.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
-/** Floor / wall shopping lines as equipment-style PDF rows (with total), same columns as panel/rack. */
-function bomLinesToPdfEquipmentTable(
-  lines: BomLine[],
-  noteForLine: (ln: BomLine) => string | undefined,
-): PdfEquipmentPriceRow[] {
-  if (lines.length === 0) return []
-  const sorted = [...lines].sort(
-    (a, b) =>
-      a.name.localeCompare(b.name) ||
-      a.sectionPath.localeCompare(b.sectionPath) ||
-      a.floor.localeCompare(b.floor),
-  )
-  const body: PdfEquipmentPriceRow[] = sorted.map((ln) => {
-    const rawNote = noteForLine(ln)
-    const note = rawNote?.trim() ? truncateCell(rawNote.trim(), 140) : undefined
-    return {
-      name: ln.name,
-      note,
-      qty: ln.qty,
-      unitPrice: ln.unitPrice,
-      lineTotal: roundMoney(ln.lineTotal),
-    }
-  })
-  const sumQty = body.reduce((s, x) => s + x.qty, 0)
-  const sumTot = roundMoney(body.reduce((s, x) => s + x.lineTotal, 0))
-  body.push({
-    name: 'Total',
-    qty: sumQty,
-    unitPrice: 0,
-    lineTotal: sumTot,
-    isTotal: true,
-  })
-  return body
-}
-
 export type ShoppingManufacturerGroup = {
   sortKey: string
   displayTitle: string
@@ -318,8 +283,9 @@ export function shoppingGroupsByManufacturer(
     .map(([sortKey, v]) => ({
       sortKey,
       displayTitle: v.displayTitle,
-      rows: bomLinesToPdfEquipmentTable(v.items, (ln) =>
-        [ln.floor, ln.room, ln.sectionPath].filter((x) => x?.trim()).join(' · '),
+      /** Same table shape as panel/rack shopping: Equipment, Qty, Unit €, Total €, plus Total row. */
+      rows: buildShoppingPriceTable(
+        aggregateShoppingLines(p, v.items).map((it) => ({ ...it, manufacturer: '' })),
       ),
     }))
 }
@@ -349,9 +315,6 @@ export function shoppingGroupsByFloor(
     .map(([sortKey, v]) => ({
       sortKey,
       displayTitle: v.displayTitle,
-      rows: bomLinesToPdfEquipmentTable(v.items, (ln) => {
-        const mfg = manufacturerLineForBomLine(p, ln).trim()
-        return [mfg || undefined, ln.room, ln.sectionPath].filter((x) => x?.trim()).join(' · ')
-      }),
+      rows: buildShoppingPriceTable(aggregateShoppingLines(p, v.items)),
     }))
 }
