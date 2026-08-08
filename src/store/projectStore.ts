@@ -41,13 +41,27 @@ import {
   updateGroupedOpening,
 } from '../lib/wallOpeningGroupSync'
 import { createFloorLevel, createInitialProject } from '../model/defaults'
-import { clampWallOpeningMeters, newWallOpeningMeters } from '../lib/wallOpeningDefaults'
+import {
+  clampWallOpeningMeters,
+  clampWallOpeningSizeM,
+  newWallOpeningMeters,
+} from '../lib/wallOpeningDefaults'
+import { clampWallThicknessM } from '../lib/wallConstruction'
+import {
+  clampFurnitureSizeM,
+  createFurnitureItem,
+  furnitureAabbHalfExtentsM,
+  normalizeRotationDeg,
+} from '../lib/furnitureCatalog'
+import { pointInPolygon } from '../lib/geometry'
 import type {
   ConnectorSubtype,
   DeviceTemplate,
   EditorTab,
   FloorDevice,
   FloorLevel,
+  FurnitureItem,
+  FurnitureKind,
   Id,
   KnxLine,
   PanelModuleType,
@@ -61,6 +75,7 @@ import type {
   RackPatchPanelLink,
   RackPortEndpoint,
   RegionKind,
+  WallMaterial,
   WallMountDevice,
   WallOpening,
   WallOpeningKind,
@@ -221,6 +236,11 @@ function reconcileAfterProjectRestore(s: ProjectStore): Partial<ProjectStore> {
       out.selectedWallSegmentId = prunedW[0] ?? null
     }
   }
+  if (s.selectionFurnitureId) {
+    if (!(fl.plan.furniture ?? []).some((f) => f.id === s.selectionFurnitureId)) {
+      out.selectionFurnitureId = null
+    }
+  }
   return out
 }
 
@@ -379,6 +399,33 @@ function applyMovePlanSelectionByDelta(
  * labels (`L{lvl}_{idx}_<roomSlug>`). Run after any wall geometry change so the
  * room set, paired sheets, and shared openings stay consistent.
  */
+/**
+ * Keep a furniture footprint inside the plan rectangle. The rotated AABB is used so a
+ * turned sofa cannot poke outside the sheet.
+ */
+function clampFurnitureCenter(
+  fl: FloorLevel,
+  item: { widthM: number; depthM: number; rotationDeg: number },
+  x: number,
+  y: number,
+): { x: number; y: number } {
+  const { hx, hy } = furnitureAabbHalfExtentsM(item)
+  const wm = fl.plan.widthM
+  const dm = fl.plan.depthM
+  /* Items larger than the sheet simply centre on it rather than jumping to a corner. */
+  const cx = hx * 2 >= wm ? wm / 2 : Math.min(wm - hx, Math.max(hx, x))
+  const cy = hy * 2 >= dm ? dm / 2 : Math.min(dm - hy, Math.max(hy, y))
+  return { x: cx, y: cy }
+}
+
+/** Innermost region containing the point (child alcoves win over their parent), else undefined. */
+function regionIdAtPlanPoint(fl: FloorLevel, p: PointM): Id | undefined {
+  const hits = (fl.plan.regions ?? []).filter((r) => pointInPolygon(p, r.vertices))
+  if (hits.length === 0) return undefined
+  const nested = hits.find((r) => r.parentRegionId && hits.some((o) => o.id === r.parentRegionId))
+  return (nested ?? hits[0]!).id
+}
+
 function reconcileFloorTopologyInProject(
   project: PlanstudioProject,
   floorId: string | null,
@@ -430,6 +477,8 @@ export type ProjectStore = {
   selectedWallSegmentId: string | null
   /** All selected plan wall segments; first id mirrors `selectedWallSegmentId`. */
   selectedWallSegmentIds: string[]
+  /** Furniture item selected on the Furnish canvas (active floor). */
+  selectionFurnitureId: string | null
 
   setActiveTab: (tab: EditorTab) => void
   setActiveFloorId: (id: string) => void
@@ -451,6 +500,14 @@ export type ProjectStore = {
   setWallOpeningKind: (kind: WallOpeningKind) => void
   setSnapGridM: (m: number) => void
   setWallOrtho: (o: boolean) => void
+  /** Applied to walls drawn from now on (existing segments keep their own values). */
+  setDefaultWallThicknessM: (m: number) => void
+  setDefaultWallMaterial: (m: WallMaterial) => void
+  /** Set thickness and/or material on one or many selected plan wall segments. */
+  updateWallSegmentsConstruction: (
+    ids: string[],
+    partial: { thicknessM?: number; material?: WallMaterial },
+  ) => void
   setNextRegionKind: (k: RegionKind) => void
   appendRegionVertex: (p: PointM) => void
   closeRegionDraft: (defaultLabel: string) => void
@@ -464,6 +521,8 @@ export type ProjectStore = {
   removePlanRegion: (id: string) => void
   /** Rename / change label of a `PlanRegion`. Auto-rooms keep their `wallCycleSignature`; the next reconcile updates wall labels (`L0_12_<roomSlug>`). */
   updatePlanRegionLabel: (id: string, label: string) => void
+  /** Mark a room as outdoor space (terrace, balcony, courtyard) or back to indoor. */
+  setPlanRegionExternal: (id: string, isExternal: boolean) => void
   setSelectionFloorDevice: (id: string | null) => void
   setSelectionFloorDevices: (ids: string[]) => void
   setSelectedWallSegmentId: (id: string | null) => void
@@ -518,6 +577,17 @@ export type ProjectStore = {
   removeFloorDevice: (id: string) => void
   removeFloorDevices: (ids: string[]) => void
 
+  /** Furnish tab: place a catalog item centred on the given plan point. */
+  addFurnitureItem: (kind: FurnitureKind, x: number, y: number) => void
+  updateFurnitureItem: (
+    id: string,
+    partial: Partial<Omit<FurnitureItem, 'id' | 'kind'>>,
+  ) => void
+  moveFurnitureItem: (id: string, x: number, y: number) => void
+  duplicateFurnitureItem: (id: string) => void
+  removeFurnitureItem: (id: string) => void
+  setSelectionFurnitureId: (id: string | null) => void
+
   setActiveWallId: (id: string | null) => void
   addWallSheet: () => void
   updateWallSheetMeta: (
@@ -525,7 +595,12 @@ export type ProjectStore = {
     partial: Partial<
       Pick<
         WallSheet,
-        'label' | 'lengthM' | 'heightM' | 'roomRegionId' | 'planSpanAlongSegment01'
+        | 'label'
+        | 'lengthM'
+        | 'heightM'
+        | 'roomRegionId'
+        | 'planSpanAlongSegment01'
+        | 'materialOverride'
       >
     >,
   ) => void
@@ -543,6 +618,12 @@ export type ProjectStore = {
   removeWallMountDevice: (wallId: string, deviceId: string) => void
   addWallOpening: (wallId: string, xM: number, zM: number) => void
   moveWallOpening: (wallId: string, openingId: string, xM: number, zM: number) => void
+  /** Resize / relabel an opening; syncs to every face sharing it and re-clamps to the wall. */
+  updateWallOpening: (
+    wallId: string,
+    openingId: string,
+    partial: Partial<Pick<WallOpening, 'xM' | 'zM' | 'widthM' | 'heightM' | 'label'>>,
+  ) => void
   removeWallOpening: (wallId: string, openingId: string) => void
 
   setPanelSlot: (
@@ -622,6 +703,7 @@ const defaultUi = () => ({
   selectedRackGearId: null as string | null,
   selectedWallSegmentId: null as string | null,
   selectedWallSegmentIds: [] as string[],
+  selectionFurnitureId: null as string | null,
 })
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -649,6 +731,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         selectedPanelSlot: null,
         selectedWallSegmentId: null,
         selectedWallSegmentIds: [],
+        selectionFurnitureId: null,
       }
     }),
   addFloorLevel: () =>
@@ -847,6 +930,57 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         }),
       ),
     ),
+  setDefaultWallThicknessM: (m) =>
+    set((s) =>
+      projectMutation(
+        s,
+        touch({
+          ...s.project,
+          editorSettings: {
+            ...s.project.editorSettings,
+            defaultWallThicknessM: clampWallThicknessM(m),
+          },
+        }),
+      ),
+    ),
+  setDefaultWallMaterial: (defaultWallMaterial) =>
+    set((s) =>
+      projectMutation(
+        s,
+        touch({
+          ...s.project,
+          editorSettings: { ...s.project.editorSettings, defaultWallMaterial },
+        }),
+      ),
+    ),
+  updateWallSegmentsConstruction: (ids, partial) =>
+    set((s) => {
+      const idSet = new Set(ids.filter(Boolean))
+      if (idSet.size === 0) return s
+      const fl = activeLevel(s.project, s.activeFloorId)
+      if (!fl.plan.wallSegments.some((w) => idSet.has(w.id))) return s
+      return projectMutation(
+        s,
+        touch(
+          mapFloors(s, (flo) => ({
+            ...flo,
+            plan: {
+              ...flo.plan,
+              wallSegments: flo.plan.wallSegments.map((w) => {
+                if (!idSet.has(w.id)) return w
+                return {
+                  ...w,
+                  ...(partial.thicknessM !== undefined
+                    ? { thicknessM: clampWallThicknessM(partial.thicknessM) }
+                    : {}),
+                  ...(partial.material !== undefined ? { material: partial.material } : {}),
+                }
+              }),
+            },
+          })),
+        ),
+      )
+    }),
   setNextRegionKind: (nextRegionKind) => set({ nextRegionKind }),
   appendRegionVertex: (p) =>
     set((s) =>
@@ -956,6 +1090,26 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       // update when the user renames a room.
       const next = touch(reconcileFloorTopologyInProject(stage1, s.activeFloorId))
       return projectMutation(s, next)
+    }),
+
+  setPlanRegionExternal: (id, isExternal) =>
+    set((s) => {
+      const fl = activeLevel(s.project, s.activeFloorId)
+      if (!fl.plan.regions.some((r) => r.id === id)) return s
+      return projectMutation(
+        s,
+        touch(
+          mapFloors(s, (flo) => ({
+            ...flo,
+            plan: {
+              ...flo.plan,
+              regions: flo.plan.regions.map((r) =>
+                r.id === id ? { ...r, isExternal: isExternal ? true : undefined } : r,
+              ),
+            },
+          })),
+        ),
+      )
     }),
 
   setSelectionFloorDevice: (selectionFloorDeviceId) =>
@@ -1086,7 +1240,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const minLen = 0.02
       if (Math.hypot(a1.x - b1.x, a1.y - b1.y) < minLen) return s
 
-      const seg: WallSegment = { id: nanoid(), a: a1, b: b1 }
+      const seg: WallSegment = {
+        id: nanoid(),
+        a: a1,
+        b: b1,
+        thicknessM: clampWallThicknessM(s.project.editorSettings.defaultWallThicknessM),
+        material: s.project.editorSettings.defaultWallMaterial,
+      }
       const stage1 = mapFloors(s, (fli) => ({
         ...fli,
         plan: {
@@ -1482,6 +1642,126 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   removeFloorDevice: (id) => get().removeFloorDevices([id]),
 
+  addFurnitureItem: (kind, x, y) =>
+    set((s) => {
+      const fl = activeLevel(s.project, s.activeFloorId)
+      const id = nanoid()
+      const base = createFurnitureItem(id, kind, x, y)
+      const item: FurnitureItem = {
+        ...base,
+        ...clampFurnitureCenter(fl, base, x, y),
+        roomRegionId: regionIdAtPlanPoint(fl, { x, y }),
+      }
+      return projectMutation(
+        s,
+        touch(
+          mapFloors(s, (flo) => ({
+            ...flo,
+            plan: { ...flo.plan, furniture: [...(flo.plan.furniture ?? []), item] },
+          })),
+        ),
+        { selectionFurnitureId: id },
+      )
+    }),
+
+  updateFurnitureItem: (id, partial) =>
+    set((s) => {
+      const fl = activeLevel(s.project, s.activeFloorId)
+      const cur = (fl.plan.furniture ?? []).find((f) => f.id === id)
+      if (!cur) return s
+      const merged: FurnitureItem = {
+        ...cur,
+        ...partial,
+        widthM:
+          partial.widthM !== undefined
+            ? clampFurnitureSizeM(partial.widthM, cur.widthM)
+            : cur.widthM,
+        depthM:
+          partial.depthM !== undefined
+            ? clampFurnitureSizeM(partial.depthM, cur.depthM)
+            : cur.depthM,
+        heightM:
+          partial.heightM !== undefined
+            ? clampFurnitureSizeM(partial.heightM, cur.heightM)
+            : cur.heightM,
+        rotationDeg:
+          partial.rotationDeg !== undefined
+            ? normalizeRotationDeg(partial.rotationDeg)
+            : cur.rotationDeg,
+      }
+      const centered = clampFurnitureCenter(fl, merged, merged.x, merged.y)
+      const next: FurnitureItem = {
+        ...merged,
+        ...centered,
+        roomRegionId:
+          'roomRegionId' in partial
+            ? partial.roomRegionId
+            : regionIdAtPlanPoint(fl, centered),
+      }
+      return projectMutation(
+        s,
+        touch(
+          mapFloors(s, (flo) => ({
+            ...flo,
+            plan: {
+              ...flo.plan,
+              furniture: (flo.plan.furniture ?? []).map((f) => (f.id === id ? next : f)),
+            },
+          })),
+        ),
+      )
+    }),
+
+  moveFurnitureItem: (id, x, y) => get().updateFurnitureItem(id, { x, y }),
+
+  duplicateFurnitureItem: (id) =>
+    set((s) => {
+      const fl = activeLevel(s.project, s.activeFloorId)
+      const src = (fl.plan.furniture ?? []).find((f) => f.id === id)
+      if (!src) return s
+      const newId = nanoid()
+      /* Offset the copy by a third of its own footprint so it does not hide the original. */
+      const offset = Math.max(0.25, Math.min(src.widthM, src.depthM) / 3)
+      const shifted = clampFurnitureCenter(fl, src, src.x + offset, src.y + offset)
+      const copy: FurnitureItem = {
+        ...src,
+        id: newId,
+        ...shifted,
+        roomRegionId: regionIdAtPlanPoint(fl, shifted),
+      }
+      return projectMutation(
+        s,
+        touch(
+          mapFloors(s, (flo) => ({
+            ...flo,
+            plan: { ...flo.plan, furniture: [...(flo.plan.furniture ?? []), copy] },
+          })),
+        ),
+        { selectionFurnitureId: newId },
+      )
+    }),
+
+  removeFurnitureItem: (id) =>
+    set((s) => {
+      const fl = activeLevel(s.project, s.activeFloorId)
+      if (!(fl.plan.furniture ?? []).some((f) => f.id === id)) return s
+      return projectMutation(
+        s,
+        touch(
+          mapFloors(s, (flo) => ({
+            ...flo,
+            plan: {
+              ...flo.plan,
+              furniture: (flo.plan.furniture ?? []).filter((f) => f.id !== id),
+            },
+          })),
+        ),
+        s.selectionFurnitureId === id ? { selectionFurnitureId: null } : {},
+      )
+    }),
+
+  setSelectionFurnitureId: (selectionFurnitureId) => set({ selectionFurnitureId }),
+
   setActiveWallId: (activeWallId) => set({ activeWallId }),
 
   addWallSheet: () =>
@@ -1515,7 +1795,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       let applied: Partial<
         Pick<
           WallSheet,
-          'label' | 'lengthM' | 'heightM' | 'roomRegionId' | 'planSpanAlongSegment01'
+          | 'label'
+          | 'lengthM'
+          | 'heightM'
+          | 'roomRegionId'
+          | 'planSpanAlongSegment01'
+          | 'materialOverride'
         >
       > = partial
       if (ws?.wallSegmentId && 'label' in partial) {
@@ -1897,6 +2182,41 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             const o = ws?.openings.find((x) => x.id === openingId)
             if (!ws || !o) return fl
             const clamped = clampWallOpeningMeters(ws, { ...o, xM, zM })
+            return updateGroupedOpening(fl, wallId, openingId, {
+              xM: clamped.xM,
+              zM: clamped.zM,
+              widthM: clamped.widthM,
+              heightM: clamped.heightM,
+              label: clamped.label,
+            })
+          }),
+        ),
+      ),
+    ),
+
+  updateWallOpening: (wallId, openingId, partial) =>
+    set((s) =>
+      projectMutation(
+        s,
+        touch(
+          mapFloors(s, (fl) => {
+            const ws = fl.wallSheets.find((w) => w.id === wallId)
+            const o = ws?.openings.find((x) => x.id === openingId)
+            if (!ws || !o) return fl
+            /* Size first, then clamp — a widened opening may need to slide off the wall edge. */
+            const sized: WallOpening = {
+              ...o,
+              ...partial,
+              widthM:
+                partial.widthM !== undefined
+                  ? clampWallOpeningSizeM(partial.widthM, ws.lengthM)
+                  : o.widthM,
+              heightM:
+                partial.heightM !== undefined
+                  ? clampWallOpeningSizeM(partial.heightM, ws.heightM)
+                  : o.heightM,
+            }
+            const clamped = clampWallOpeningMeters(ws, sized)
             return updateGroupedOpening(fl, wallId, openingId, {
               xM: clamped.xM,
               zM: clamped.zM,

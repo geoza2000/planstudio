@@ -114,6 +114,11 @@ export function computePlanViewport(plan: FloorPlan, padM = 0.6): PlanViewport {
       grow(v.x, v.y)
     }
   }
+  for (const f of plan.furniture ?? []) {
+    const hx = (f.widthM + f.depthM) / 2
+    grow(f.x - hx, f.y - hx)
+    grow(f.x + hx, f.y + hx)
+  }
 
   minX -= padM
   minY -= padM

@@ -30,8 +30,19 @@ import { segmentIntersectsAabb } from '../lib/segmentAabb'
 import { snapMeters, snapWallPointToPlanGeometry } from '../lib/geometry'
 import { getKonvaGroupScreenAnchorBelow } from '../lib/konvaScreenAnchor'
 import { deviceFill, deviceGlyph } from '../lib/deviceStyle'
+import {
+  effectiveWallMaterial,
+  effectiveWallThicknessM,
+  wallMaterialPlanHatch,
+  wallMaterialPlanStroke,
+} from '../lib/wallConstruction'
 import { useProjectStore } from '../store/projectStore'
-import { deviceHoverLabel, type PlanRegion, type PointM } from '../types/project'
+import {
+  deviceHoverLabel,
+  regionIsExternal,
+  type PlanRegion,
+  type PointM,
+} from '../types/project'
 import type { Node as KonvaNode } from 'konva/lib/Node'
 import { PlanWallOpeningIcon } from './PlanWallOpeningIcon'
 
@@ -47,9 +58,10 @@ function clamp(n: number, lo: number, hi: number) {
 function roomRegionFill(
   index: number,
   kind: 'room' | 'patio' | 'other',
-  opts?: { nested?: boolean },
+  opts?: { nested?: boolean; external?: boolean },
 ): string {
-  if (kind === 'patio') return 'hsla(160, 35%, 45%, 0.18)'
+  // Outdoor spaces read green regardless of `kind` (auto-rooms are always kind 'room').
+  if (opts?.external || kind === 'patio') return 'hsla(160, 45%, 45%, 0.22)'
   if (kind === 'other') return 'hsla(220, 18%, 55%, 0.14)'
   // 'room' — distinct hue per region using a stable hash by sequence index.
   const hue = (index * 53) % 360
@@ -84,6 +96,7 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
       const idxMap = wallSegmentStableIndexMap(floor.wallSegments)
       return { levelIdx, idxMap }
     }, [project.floors, activeFloor.id, floor.wallSegments])
+    const editorSettings = useProjectStore((s) => s.project.editorSettings)
     const tool = useProjectStore((s) => s.floorTool)
     const addWallSegment = useProjectStore((s) => s.addWallSegment)
     const addFloorDevice = useProjectStore((s) => s.addFloorDevice)
@@ -646,9 +659,11 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
                 region.vertices.reduce((sum, v) => sum + v.y, 0) /
                 region.vertices.length
               const nested = Boolean(region.parentRegionId)
-              const fill = roomRegionFill(ri, region.kind, { nested })
+              const external = regionIsExternal(region)
+              const fill = roomRegionFill(ri, region.kind, { nested, external })
+              const baseLabel = external ? `${region.label} · outdoor` : region.label
               const labelText =
-                region.kind === 'room' && nested ? `↳ ${region.label}` : region.label
+                region.kind === 'room' && nested ? `↳ ${baseLabel}` : baseLabel
               return (
                 <Group
                   key={region.id}
@@ -702,6 +717,12 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
               const dx = xb - xa
               const dy = yb - ya
               const wallSel = tool === 'select' && selectedWallIdSet.has(seg.id)
+              const segMaterial = effectiveWallMaterial(seg, editorSettings)
+              const segHatch = wallMaterialPlanHatch(segMaterial)
+              const wallThickPx = Math.max(
+                4,
+                effectiveWallThicknessM(seg, editorSettings) * PPM,
+              )
               const stableN = wallPlanLabeling.idxMap.get(seg.id) ?? 1
               const wallCode = derivedPlanWallCode(wallPlanLabeling.levelIdx, stableN)
               const alongDeg = segmentAngleDegFromPlusX(seg.a, seg.b)
@@ -781,11 +802,22 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
                 >
                   <Line
                     points={[0, 0, dx, dy]}
-                    stroke={wallSel ? '#ffffff' : '#e0e6ed'}
-                    strokeWidth={wallSel ? 8 : 6}
+                    stroke={wallSel ? '#ffffff' : wallMaterialPlanStroke(segMaterial)}
+                    strokeWidth={wallThickPx + (wallSel ? 2 : 0)}
                     lineCap="round"
-                    hitStrokeWidth={16}
+                    hitStrokeWidth={Math.max(16, wallThickPx + 10)}
                   />
+                  {segHatch ? (
+                    /* Rock walls get a dashed core so the finish reads without opening the inspector. */
+                    <Line
+                      listening={false}
+                      points={[0, 0, dx, dy]}
+                      stroke={segHatch}
+                      strokeWidth={Math.max(1.5, wallThickPx * 0.45)}
+                      dash={[5, 4]}
+                      lineCap="butt"
+                    />
+                  ) : null}
                   <Text
                     x={dx / 2}
                     y={dy / 2}
@@ -914,6 +946,7 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
                       x={FLOOR_PADDING_PX + x * PPM}
                       y={FLOOR_PADDING_PX + y * PPM}
                       alongDeg={alongDeg}
+                      widthPx={o.widthM * PPM}
                     />,
                   )
                 }

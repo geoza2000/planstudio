@@ -1,5 +1,9 @@
-/** Current persisted project schema. v14: auto-rooms from wall cycles; per-room wall faces with shared openings. */
-export const SCHEMA_VERSION = 14 as const
+/**
+ * Current persisted project schema.
+ * v15: wall construction metadata (thickness + material) and per-floor furniture / fixture items.
+ * v14: auto-rooms from wall cycles; per-room wall faces with shared openings.
+ */
+export const SCHEMA_VERSION = 15 as const
 /** Oldest `schemaVersion` this build loads (inclusive). */
 export const MIN_SUPPORTED_SCHEMA_VERSION = 13 as const
 
@@ -113,10 +117,33 @@ export interface PointM {
   y: number
 }
 
+/** Surface finish of a wall; drives the plan hatch and the generated 3D-render prompt. */
+export type WallMaterial = 'painted' | 'rock'
+
+export const WALL_MATERIALS: WallMaterial[] = ['painted', 'rock']
+
+/** Structural thickness used when no per-wall value is stored (m). */
+export const DEFAULT_WALL_THICKNESS_M = 0.1
+
+export function wallMaterialLabel(m: WallMaterial): string {
+  return m === 'rock' ? 'Rock / stone' : 'Painted'
+}
+
+/** Longer phrasing for documentation and the render prompt. */
+export function wallMaterialDescription(m: WallMaterial): string {
+  return m === 'rock'
+    ? 'exposed natural stone masonry (rough, irregular courses)'
+    : 'smooth plastered wall with matte painted finish'
+}
+
 export interface WallSegment {
   id: Id
   a: PointM
   b: PointM
+  /** Structural thickness in meters; falls back to `editorSettings.defaultWallThicknessM`. */
+  thicknessM?: number
+  /** Default finish for both faces; falls back to `editorSettings.defaultWallMaterial`. */
+  material?: WallMaterial
 }
 
 /** Structured loads / infrastructure hints (editable); used in requirements rollup. */
@@ -174,6 +201,72 @@ export interface PlanRegion {
    * on each topology reconcile from geometry; not user-edited.
    */
   parentRegionId?: Id
+  /**
+   * User toggle: this space is outdoors (terrace, balcony, courtyard, garden). Survives
+   * topology reconciles, unlike `kind`, which auto-rooms always force back to `'room'`.
+   * Drives the plan fill and tells the 3D render prompt there is sky above, not a ceiling.
+   */
+  isExternal?: boolean
+}
+
+/** True when the region should be treated as outdoor space. */
+export function regionIsExternal(r: Pick<PlanRegion, 'kind' | 'isExternal'>): boolean {
+  return r.isExternal === true || r.kind === 'patio'
+}
+
+/** Grouping for the furnish palette; also used to bucket items in the render prompt. */
+export type FurnitureCategory = 'living' | 'bedroom' | 'kitchen' | 'bathroom' | 'outdoor'
+
+/**
+ * Persisted furniture / sanitary taxonomy (snake_case). Footprints are plain rectangles —
+ * the `L` shapes only affect how the plan glyph is drawn, never the stored geometry.
+ */
+export type FurnitureKind =
+  | 'sofa_l'
+  | 'sofa'
+  | 'armchair'
+  | 'coffee_table'
+  | 'tv_table'
+  | 'dining_table'
+  | 'chair'
+  | 'bookshelf'
+  | 'bed_double'
+  | 'bed_single'
+  | 'nightstand'
+  | 'wardrobe'
+  | 'desk'
+  | 'kitchen_counter'
+  | 'kitchen_island'
+  | 'fridge'
+  | 'shower_glass'
+  | 'toilet_inwall'
+  | 'sink_combo'
+  | 'bathtub'
+  | 'washing_machine'
+  | 'outdoor_sofa_l'
+  | 'outdoor_dining'
+  | 'sun_lounger'
+  | 'bbq'
+  | 'planter'
+
+/**
+ * A furniture / sanitary block on the plan. `x`,`y` are the footprint **center** in meters
+ * and `rotationDeg` turns it clockwise about that center (0 = width along +X).
+ */
+export interface FurnitureItem {
+  id: Id
+  kind: FurnitureKind
+  label: string
+  x: number
+  y: number
+  widthM: number
+  depthM: number
+  /** Height above the floor (m) — metadata only, used by the 3D render prompt. */
+  heightM: number
+  rotationDeg: number
+  /** Room this item was dropped in, when the point fell inside a region polygon. */
+  roomRegionId?: Id
+  notes?: string
 }
 
 export interface FloorPlan {
@@ -184,6 +277,8 @@ export interface FloorPlan {
   wallSegments: WallSegment[]
   devices: FloorDevice[]
   regions: PlanRegion[]
+  /** Furniture / sanitary blocks placed on the Furnish tab (no BOM impact). */
+  furniture: FurnitureItem[]
 }
 
 export interface WallMountDevice extends BillableProduct {
@@ -255,6 +350,11 @@ export interface WallSheet {
    * `lengthM` is the chord length for that span.
    */
   planSpanAlongSegment01?: { t0: number; t1: number }
+  /**
+   * Finish of *this face only* (e.g. a stone feature wall in the living room whose other
+   * side is painted). Unset → inherit the plan segment's `material`.
+   */
+  materialOverride?: WallMaterial
 }
 
 export interface FloorLevel {
@@ -391,6 +491,10 @@ export interface RackFrame {
 export interface EditorSettings {
   snapGridM: number
   wallOrtho: boolean
+  /** Applied to newly drawn plan wall segments and used when a segment stores no thickness. */
+  defaultWallThicknessM: number
+  /** Applied to newly drawn plan wall segments and used when a segment stores no material. */
+  defaultWallMaterial: WallMaterial
 }
 
 export interface PlanstudioProject {
@@ -407,6 +511,6 @@ export interface PlanstudioProject {
   deviceCatalog: DeviceTemplate[]
 }
 
-export type EditorTab = 'floor' | 'wall' | 'panel' | 'rack' | 'devices'
+export type EditorTab = 'floor' | 'wall' | 'furnish' | 'panel' | 'rack' | 'devices'
 
 export type FloorTool = 'select' | 'wall' | 'region' | 'opening'

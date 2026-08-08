@@ -473,3 +473,173 @@
   margin: 0;
   padding: 1rem 1.25rem 1.25rem;
 }
+
+/* Furnish tab: draggable catalog rows in the right rail. */
+.furniture-palette-list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.furniture-palette-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid #23303f;
+  background: #131a23;
+  color: #cfd8e3;
+  cursor: grab;
+  text-align: left;
+}
+
+.furniture-palette-row:hover {
+  border-color: #3d5a80;
+  background: #172130;
+}
+
+.furniture-palette-row:active {
+  cursor: grabbing;
+}
+
+.furniture-palette-swatch {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid #3d5a80;
+}
+
+.furniture-palette-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.furniture-palette-name {
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+/* Render prompt modal (Phase 4). */
+.render-prompt-dialog {
+  max-width: 56rem;
+  width: calc(100vw - 2rem);
+  z-index: 10000;
+  border: 1px solid #2a3a50;
+  border-radius: 10px;
+  padding: 0;
+  background: #121820;
+  color: #e8eef4;
+}
+
+.render-prompt-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.render-prompt-inner {
+  margin: 0;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.render-prompt-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .render-prompt-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.render-prompt-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.render-prompt-col-label {
+  font-size: 0.8rem;
+  color: #98a7b8;
+}
+
+.render-prompt-plan {
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid #23303f;
+  background: #ffffff;
+}
+
+.render-prompt-text {
+  width: 100%;
+  min-height: 20rem;
+  flex: 1;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  padding: 0.6rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid #23303f;
+  background: #0f1419;
+  color: #dbe4ee;
+}
+
+/* Floor tab: room list with the outdoor-space toggle. */
+.room-list {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.room-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name area'
+    'toggle toggle';
+  gap: 0.25rem 0.5rem;
+  align-items: center;
+  padding: 0.4rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid #23303f;
+  background: #131a23;
+}
+
+.room-list-name {
+  grid-area: name;
+  min-width: 0;
+}
+
+.room-list-area {
+  grid-area: area;
+  white-space: nowrap;
+}
+
+.room-list-toggle {
+  grid-area: toggle;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: #cfd8e3;
+  cursor: pointer;
+}
+
+.room-list-toggle input {
+  width: auto;
+  margin: 0;
+}

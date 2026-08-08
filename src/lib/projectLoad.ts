@@ -11,14 +11,23 @@ import type {
   DeviceType,
   FloorDevice,
   FloorLevel,
+  FurnitureItem,
   KnxLine,
   PlanstudioProject,
   RackFrame,
   RackGear,
   RackPatchPanelLink,
+  WallMaterial,
   WallMountDevice,
 } from '../types/project'
-import { DEVICE_TYPES } from '../types/project'
+import { DEFAULT_WALL_THICKNESS_M, DEVICE_TYPES } from '../types/project'
+import { clampWallThicknessM, isWallMaterial } from './wallConstruction'
+import {
+  clampFurnitureSizeM,
+  furnitureSpec,
+  isFurnitureKind,
+  normalizeRotationDeg,
+} from './furnitureCatalog'
 import { DEFAULT_CEILING_HEIGHT_M } from './floorDeviceCluster'
 import {
   MIN_SUPPORTED_SCHEMA_VERSION,
@@ -85,6 +94,33 @@ function migrateDeviceRequirements(
   }
   delete next.bticinoActuator
   return Object.keys(next).length ? next : undefined
+}
+
+/** Furnish-tab items: drop rows with an unknown kind, clamp geometry, fill catalog defaults. */
+function normalizeFurnitureRaw(raw: unknown): FurnitureItem[] {
+  if (!Array.isArray(raw)) return []
+  const out: FurnitureItem[] = []
+  for (const row of raw) {
+    if (!isRecord(row)) continue
+    if (!isFurnitureKind(row.kind)) continue
+    const spec = furnitureSpec(row.kind)
+    const num = (v: unknown, fallback: number) =>
+      typeof v === 'number' && Number.isFinite(v) ? v : fallback
+    out.push({
+      id: typeof row.id === 'string' && row.id.trim() ? row.id : nanoid(),
+      kind: row.kind,
+      label: typeof row.label === 'string' ? row.label : '',
+      x: num(row.x, 0),
+      y: num(row.y, 0),
+      widthM: clampFurnitureSizeM(num(row.widthM, spec.widthM), spec.widthM),
+      depthM: clampFurnitureSizeM(num(row.depthM, spec.depthM), spec.depthM),
+      heightM: clampFurnitureSizeM(num(row.heightM, spec.heightM), spec.heightM),
+      rotationDeg: normalizeRotationDeg(num(row.rotationDeg, 0)),
+      roomRegionId: typeof row.roomRegionId === 'string' ? row.roomRegionId : undefined,
+      notes: typeof row.notes === 'string' && row.notes.trim() ? row.notes : undefined,
+    })
+  }
+  return out
 }
 
 function normalizeKnxLinesRaw(raw: unknown): KnxLine[] {
@@ -243,6 +279,25 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
     ...fl,
     plan: {
       ...fl.plan,
+      wallSegments: (fl.plan.wallSegments ?? []).map((seg) => {
+        const loose = seg as unknown as LooseRecord
+        const t = loose.thicknessM
+        const m = loose.material
+        return {
+          ...seg,
+          thicknessM:
+            typeof t === 'number' && Number.isFinite(t) ? clampWallThicknessM(t) : undefined,
+          material: isWallMaterial(m) ? m : undefined,
+        }
+      }),
+      furniture: (() => {
+        const regionIds = new Set((fl.plan.regions ?? []).map((r) => r.id))
+        return normalizeFurnitureRaw((fl.plan as unknown as LooseRecord).furniture).map((f) => ({
+          ...f,
+          roomRegionId:
+            f.roomRegionId && regionIds.has(f.roomRegionId) ? f.roomRegionId : undefined,
+        }))
+      })(),
       regions: (() => {
         const regs = fl.plan.regions ?? []
         const idSet = new Set(regs.map((r) => r.id))
@@ -250,6 +305,10 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
           ...r,
           parentRegionId:
             r.parentRegionId && idSet.has(r.parentRegionId) ? r.parentRegionId : undefined,
+          isExternal:
+            (r as unknown as LooseRecord).isExternal === true || r.kind === 'patio'
+              ? true
+              : undefined,
         }))
       })(),
       devices: fl.plan.devices.map((d) => {
@@ -296,6 +355,9 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
     wallSheets: fl.wallSheets.map((w) => ({
       ...w,
       openings: w.openings ?? [],
+      materialOverride: isWallMaterial((w as unknown as LooseRecord).materialOverride)
+        ? ((w as unknown as LooseRecord).materialOverride as WallMaterial)
+        : undefined,
       devices: w.devices.map((d) => {
         const migrated = normalizeDeviceTypeRecord(d as unknown as LooseRecord) as WallMountDevice
         const l = migrated as unknown as {
@@ -341,9 +403,16 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
       : 0.1
   const wallOrthoRaw = looseEs?.wallOrtho
   const wallOrtho = typeof wallOrthoRaw === 'boolean' ? wallOrthoRaw : true
+  const thickRaw = looseEs?.defaultWallThicknessM
+  const materialRaw = looseEs?.defaultWallMaterial
   const editorSettings: PlanstudioProject['editorSettings'] = {
     snapGridM: Math.max(0.01, snapGridM),
     wallOrtho,
+    defaultWallThicknessM:
+      typeof thickRaw === 'number' && Number.isFinite(thickRaw)
+        ? clampWallThicknessM(thickRaw)
+        : DEFAULT_WALL_THICKNESS_M,
+    defaultWallMaterial: isWallMaterial(materialRaw) ? materialRaw : 'painted',
   }
 
   function parsePortEndpoint(x: unknown): RackPortEndpoint | null {

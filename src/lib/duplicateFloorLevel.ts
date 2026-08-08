@@ -79,6 +79,14 @@ export function cloneFloorWithNewIds(source: FloorLevel): CloneFloorWithNewIdsRe
           ? wallDeviceIdMap.get(d.linkedWallDeviceId)
           : undefined,
     })),
+    furniture: (source.plan.furniture ?? []).map((f) => ({
+      ...f,
+      id: nanoid(),
+      roomRegionId:
+        f.roomRegionId && regionMap.has(f.roomRegionId)
+          ? regionMap.get(f.roomRegionId)
+          : undefined,
+    })),
     regions: source.plan.regions.map((r) => ({
       ...r,
       id: regionMap.get(r.id)!,

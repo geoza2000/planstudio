@@ -6,7 +6,7 @@ import {
 } from '../lib/billable'
 import { reconcilePanelSpans } from '../lib/panelSpans'
 import type { FloorLevel, KnxLine, PanelSlot, PlanstudioProject } from '../types/project'
-import { SCHEMA_VERSION } from '../types/project'
+import { DEFAULT_WALL_THICKNESS_M, SCHEMA_VERSION } from '../types/project'
 
 export function emptyPanelSlot(row: number, col: number): PanelSlot {
   const moduleType: PanelSlot['moduleType'] = 'blank'
@@ -42,6 +42,7 @@ function emptyPlan(label: string, widthM: number, depthM: number) {
     wallSegments: [] as FloorLevel['plan']['wallSegments'],
     devices: [] as FloorLevel['plan']['devices'],
     regions: [] as FloorLevel['plan']['regions'],
+    furniture: [] as FloorLevel['plan']['furniture'],
   }
 }
 
@@ -110,6 +111,8 @@ export function createInitialProject(): PlanstudioProject {
     editorSettings: {
       snapGridM: 0.1,
       wallOrtho: true,
+      defaultWallThicknessM: DEFAULT_WALL_THICKNESS_M,
+      defaultWallMaterial: 'painted',
     },
     deviceCatalog: [],
   }

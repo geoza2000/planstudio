@@ -10,6 +10,13 @@ import { DeviceCatalogPanel } from './components/DeviceCatalogEditor'
 import { DeviceTemplatePalette } from './components/DeviceTemplatePalette'
 import { KnxBusDeviceFields } from './components/KnxBusDeviceFields'
 import { UnlinkedDevicesImportModal } from './components/UnlinkedDevicesImportModal'
+import { WallConstructionFields } from './components/WallConstructionFields'
+import { FurnishEditor } from './components/FurnishEditor'
+import { FurniturePalette } from './components/FurniturePalette'
+import { FurnitureInspector } from './components/FurnitureInspector'
+import { WallOpeningInspector } from './components/WallOpeningInspector'
+import { RenderPromptModal } from './components/RenderPromptModal'
+import { RoomListPanel } from './components/RoomListPanel'
 import {
   downloadBlob,
   downloadJson,
@@ -48,6 +55,12 @@ import {
   planVsRowsForRequirementsRailTab,
   rackOccupiedRUHigh,
 } from './lib/requirementsAggregate'
+import {
+  effectiveWallMaterial,
+  effectiveWallThicknessM,
+  MAX_WALL_THICKNESS_M,
+  MIN_WALL_THICKNESS_M,
+} from './lib/wallConstruction'
 import { useUndoHotkeys } from './hooks/useUndoHotkeys'
 import { useProjectStore } from './store/projectStore'
 import type {
@@ -62,7 +75,15 @@ import type {
   RackFrame,
   WallSheet,
 } from './types/project'
-import { CONNECTOR_SUBTYPES, DEVICE_TYPES, SCHEMA_VERSION } from './types/project'
+import {
+  CONNECTOR_SUBTYPES,
+  DEVICE_TYPES,
+  regionIsExternal,
+  SCHEMA_VERSION,
+  WALL_MATERIALS,
+  wallMaterialLabel,
+  type WallMaterial,
+} from './types/project'
 import { listUnlinkedPlanWallDevices } from './lib/unlinkedDeviceMigration'
 import {
   segmentAngleDegFromPlusX,
@@ -295,6 +316,12 @@ function App() {
   const setSnapGridM = useProjectStore((s) => s.setSnapGridM)
   const wallOrtho = useProjectStore((s) => s.project.editorSettings.wallOrtho)
   const setWallOrtho = useProjectStore((s) => s.setWallOrtho)
+  const editorSettings = useProjectStore((s) => s.project.editorSettings)
+  const setDefaultWallThicknessM = useProjectStore((s) => s.setDefaultWallThicknessM)
+  const setDefaultWallMaterial = useProjectStore((s) => s.setDefaultWallMaterial)
+  const updateWallSegmentsConstruction = useProjectStore(
+    (s) => s.updateWallSegmentsConstruction,
+  )
   const wallDrawA = useProjectStore((s) => s.wallDrawA)
   const wallDrawLengthInput = useProjectStore((s) => s.wallDrawLengthInput)
   const wallDrawAngleInput = useProjectStore((s) => s.wallDrawAngleInput)
@@ -312,6 +339,7 @@ function App() {
   const setActiveWallId = useProjectStore((s) => s.setActiveWallId)
   const updateWallSheetMeta = useProjectStore((s) => s.updateWallSheetMeta)
   const updatePlanRegionLabel = useProjectStore((s) => s.updatePlanRegionLabel)
+  const setPlanRegionExternal = useProjectStore((s) => s.setPlanRegionExternal)
   const addWallSheet = useProjectStore((s) => s.addWallSheet)
   const removeWallSheet = useProjectStore((s) => s.removeWallSheet)
   const setFloorDeviceWallLink = useProjectStore((s) => s.setFloorDeviceWallLink)
@@ -364,6 +392,7 @@ function App() {
 
   const floorStageRef = useRef<KonvaStage>(null)
   const wallStageRef = useRef<KonvaStage>(null)
+  const furnishStageRef = useRef<KonvaStage>(null)
   const panelStageRef = useRef<KonvaStage>(null)
   const rackStageRef = useRef<KonvaStage>(null)
 
@@ -435,6 +464,22 @@ function App() {
     return floorPlan.wallSegments.find((w) => w.id === selectedWallSegmentIds[0]!) ?? null
   }, [floorPlan, selectedWallSegmentIds])
 
+  /** Shared thickness / material across a multi-segment selection, or a "mixed" marker. */
+  const multiWallConstruction = useMemo(() => {
+    const segs = (floorPlan?.wallSegments ?? []).filter((w) =>
+      selectedWallSegmentIds.includes(w.id),
+    )
+    const thicknesses = segs.map((w) => effectiveWallThicknessM(w, editorSettings))
+    const materials = segs.map((w) => effectiveWallMaterial(w, editorSettings))
+    const first = { t: thicknesses[0], m: materials[0] }
+    return {
+      thicknessM: first.t ?? editorSettings.defaultWallThicknessM,
+      material: first.m ?? editorSettings.defaultWallMaterial,
+      mixedThickness: thicknesses.some((t) => t !== first.t),
+      mixedMaterial: materials.some((m) => m !== first.m),
+    }
+  }, [floorPlan?.wallSegments, selectedWallSegmentIds, editorSettings])
+
   const [wallEditLength, setWallEditLength] = useState('')
   const [wallEditAngle, setWallEditAngle] = useState('')
   const [wallEditOrthoLock, setWallEditOrthoLock] = useState(false)
@@ -475,6 +520,7 @@ function App() {
     return o
   }, [wallSheets])
 
+  const [showRenderPrompt, setShowRenderPrompt] = useState(false)
   const [pdfExportBusy, setPdfExportBusy] = useState(false)
   const pdfExportBusyRef = useRef(false)
 
@@ -486,6 +532,7 @@ function App() {
     const map: Record<EditorTab, KonvaStage | null> = {
       floor: floorStageRef.current,
       wall: wallStageRef.current,
+      furnish: furnishStageRef.current,
       panel: panelStageRef.current,
       rack: rackStageRef.current,
       devices: null,
@@ -860,12 +907,14 @@ function App() {
   const tabs: { id: EditorTab; label: string }[] = [
     { id: 'floor', label: 'Floor plan' },
     { id: 'wall', label: 'Wall' },
+    { id: 'furnish', label: 'Furnish' },
     { id: 'panel', label: 'Panel' },
     { id: 'rack', label: 'Rack' },
     { id: 'devices', label: 'Devices' },
   ]
 
   const showDevicePaletteRail = activeTab === 'floor' || activeTab === 'wall'
+  const showFurniturePaletteRail = activeTab === 'furnish'
   /** Panel/rack: roll-up + plan vs panel/rack table in the right rail (not the floor/wall device template rail). */
   const showRequirementsRail = activeTab === 'panel' || activeTab === 'rack'
 
@@ -907,6 +956,14 @@ function App() {
           <button
             type="button"
             className="btn secondary"
+            onClick={() => setShowRenderPrompt(true)}
+            title="Build a text brief for an LLM / gen-AI model to render this floor in 3D: rooms, wall thickness and finish, doors and windows at real sizes, furniture and visible fittings."
+          >
+            3D render prompt
+          </button>
+          <button
+            type="button"
+            className="btn secondary"
             onClick={() => undo()}
             disabled={!canUndo}
             title="Undo (Ctrl+Z or ⌘Z)"
@@ -929,9 +986,9 @@ function App() {
       </header>
 
       <div
-        className={`app-body${showDevicePaletteRail ? ' app-body-with-palette' : ''}${
-          showRequirementsRail ? ' app-body-with-requirements-rail' : ''
-        }`}
+        className={`app-body${
+          showDevicePaletteRail || showFurniturePaletteRail ? ' app-body-with-palette' : ''
+        }${showRequirementsRail ? ' app-body-with-requirements-rail' : ''}`}
       >
         <aside className="sidebar">
           <label className="field">
@@ -1028,6 +1085,8 @@ function App() {
                 tab with the Device tool for drag-drop from the palette rail.
               </p>
             </div>
+          ) : activeTab === 'furnish' ? (
+            <FurnitureInspector />
           ) : (
           <>
           {(activeTab === 'floor' || activeTab === 'wall') && (
@@ -1133,6 +1192,36 @@ function App() {
                   onChange={(e) => setSnapGridM(Number(e.target.value))}
                 />
               </label>
+              <div className="field-row">
+                <label className="field">
+                  <span>New wall thickness (m)</span>
+                  <input
+                    type="number"
+                    min={MIN_WALL_THICKNESS_M}
+                    max={MAX_WALL_THICKNESS_M}
+                    step={0.01}
+                    value={editorSettings.defaultWallThicknessM}
+                    onChange={(e) => setDefaultWallThicknessM(Number(e.target.value))}
+                  />
+                </label>
+                <label className="field">
+                  <span>New wall material</span>
+                  <select
+                    value={editorSettings.defaultWallMaterial}
+                    onChange={(e) => setDefaultWallMaterial(e.target.value as WallMaterial)}
+                  >
+                    {WALL_MATERIALS.map((m) => (
+                      <option key={m} value={m}>
+                        {wallMaterialLabel(m)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <p className="muted small" style={{ marginTop: 0 }}>
+                Defaults for walls drawn from now on. Walls are drawn to scale on the plan;
+                select one to change its own thickness or finish.
+              </p>
               <label className="field check">
                 <input
                   type="checkbox"
@@ -1141,6 +1230,7 @@ function App() {
                 />
                 <span>Orthogonal walls (Shift inverts for one edge)</span>
               </label>
+              <RoomListPanel />
               {floorTool === 'select' && selectedWallSegmentIds.length > 1 && (
                 <div className="panel-block inner">
                   <h3 className="side-heading">Plan walls</h3>
@@ -1148,6 +1238,21 @@ function App() {
                     {selectedWallSegmentIds.length} segments selected. Drag any highlighted wall to
                     move all of them together.
                   </p>
+                  <WallConstructionFields
+                    thicknessM={multiWallConstruction.thicknessM}
+                    material={multiWallConstruction.material}
+                    mixedThickness={multiWallConstruction.mixedThickness}
+                    mixedMaterial={multiWallConstruction.mixedMaterial}
+                    onThicknessChange={(m) =>
+                      updateWallSegmentsConstruction(selectedWallSegmentIds, {
+                        thicknessM: m,
+                      })
+                    }
+                    onMaterialChange={(m) =>
+                      updateWallSegmentsConstruction(selectedWallSegmentIds, { material: m })
+                    }
+                    hint={`Applies to all ${selectedWallSegmentIds.length} selected segments.`}
+                  />
                 </div>
               )}
               {floorTool === 'select' && selectedWallSeg && (
@@ -1223,6 +1328,17 @@ function App() {
                       Cancel
                     </button>
                   </div>
+                  <WallConstructionFields
+                    thicknessM={effectiveWallThicknessM(selectedWallSeg, editorSettings)}
+                    material={effectiveWallMaterial(selectedWallSeg, editorSettings)}
+                    onThicknessChange={(m) =>
+                      updateWallSegmentsConstruction([selectedWallSeg.id], { thicknessM: m })
+                    }
+                    onMaterialChange={(m) =>
+                      updateWallSegmentsConstruction([selectedWallSeg.id], { material: m })
+                    }
+                    hint="Construction metadata: drawn to scale on the plan and used by the 3D render prompt. Each room face can override the finish on the Wall tab."
+                  />
                 </div>
               )}
               {floorTool === 'wall' && wallDrawA && (
@@ -1753,6 +1869,16 @@ function App() {
                         Wall label includes the room slug ({activeWall.label}).
                         The opposite face of this wall edits the same opening list.
                       </p>
+                      <label className="field check" style={{ marginTop: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={regionIsExternal(autoRoom)}
+                          onChange={(e) =>
+                            setPlanRegionExternal(autoRoom.id, e.target.checked)
+                          }
+                        />
+                        <span>Outdoor space (terrace, balcony, courtyard)</span>
+                      </label>
                     </label>
                   )
                 }
@@ -1816,6 +1942,40 @@ function App() {
                   />
                 </label>
               </div>
+              {(() => {
+                const seg = activeWall.wallSegmentId
+                  ? floorPlan?.wallSegments.find((w) => w.id === activeWall.wallSegmentId)
+                  : undefined
+                const inherited = effectiveWallMaterial(seg, editorSettings)
+                return (
+                  <label className="field">
+                    <span>Finish on this face</span>
+                    <select
+                      value={activeWall.materialOverride ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        updateWallSheetMeta(activeWall.id, {
+                          materialOverride: v ? (v as WallMaterial) : undefined,
+                        })
+                      }}
+                    >
+                      <option value="">
+                        Inherit from wall ({wallMaterialLabel(inherited)})
+                      </option>
+                      {WALL_MATERIALS.map((m) => (
+                        <option key={m} value={m}>
+                          {wallMaterialLabel(m)}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="muted small" style={{ marginTop: 6 }}>
+                      Override only this room's side of the wall — e.g. a stone feature wall in
+                      the living room whose other face stays painted. The wall's own material
+                      and thickness live on the Floor tab.
+                    </p>
+                  </label>
+                )
+              })()}
               {floorTool === 'opening' && (
                 <label className="field">
                   <span>Opening</span>
@@ -1830,6 +1990,7 @@ function App() {
                   </select>
                 </label>
               )}
+              <WallOpeningInspector />
               <p className="muted small">
                 Plan wall segments (Floor tab) auto-create and update these sheets. You can
                 add custom walls (no plan link) for extra elevations. Double-click a plan
@@ -2254,6 +2415,14 @@ function App() {
               </div>
             </section>
             <section
+              className={activeTab === 'furnish' ? 'editor-pane active' : 'editor-pane'}
+              aria-hidden={activeTab !== 'furnish'}
+            >
+              <div className="editor-canvas-col">
+                <FurnishEditor ref={furnishStageRef} />
+              </div>
+            </section>
+            <section
               className={activeTab === 'panel' ? 'editor-pane active' : 'editor-pane'}
               aria-hidden={activeTab !== 'panel'}
             >
@@ -2582,6 +2751,11 @@ function App() {
             )}
           </aside>
         ) : null}
+        {showFurniturePaletteRail ? (
+          <aside className="palette-rail" aria-label="Furniture and fixtures">
+            <FurniturePalette />
+          </aside>
+        ) : null}
         {showRequirementsRail ? (
           <aside className="requirements-rail" aria-label="Requirements roll-up and plan vs panel/rack">
             <RequirementsRollupPanel
@@ -2594,6 +2768,9 @@ function App() {
               onPatchLabelChange={setRackPatchPanelLink}
             />
           </aside>
+        ) : null}
+        {showRenderPrompt ? (
+          <RenderPromptModal onClose={() => setShowRenderPrompt(false)} />
         ) : null}
         {pendingImportMigration ? (
           <UnlinkedDevicesImportModal

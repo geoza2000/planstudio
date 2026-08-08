@@ -47,6 +47,19 @@ export function newWallOpeningMeters(
   })
 }
 
+/** Smallest usable opening dimension (m). */
+export const MIN_WALL_OPENING_SIZE_M = 0.2
+
+/**
+ * Keep a width / height edit positive and no larger than the wall itself, so
+ * `clampWallOpeningMeters` always has a valid rectangle to place.
+ */
+export function clampWallOpeningSizeM(value: number, wallExtentM: number): number {
+  if (!Number.isFinite(value)) return MIN_WALL_OPENING_SIZE_M
+  const max = Math.max(MIN_WALL_OPENING_SIZE_M, wallExtentM)
+  return Math.min(max, Math.max(MIN_WALL_OPENING_SIZE_M, value))
+}
+
 /**
  * Re-clamp an opening after a drag or size edit so it stays within the wall rectangle.
  */
