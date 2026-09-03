@@ -1,6 +1,8 @@
 import {
+  DEFAULT_LOW_WALL_HEIGHT_M,
   DEFAULT_WALL_THICKNESS_M,
   type EditorSettings,
+  type WallForm,
   type WallMaterial,
   type WallSegment,
   type WallSheet,
@@ -17,6 +19,45 @@ export function clampWallThicknessM(m: number): number {
 
 export function isWallMaterial(x: unknown): x is WallMaterial {
   return x === 'painted' || x === 'rock'
+}
+
+export function isWallForm(x: unknown): x is WallForm {
+  return x === 'full' || x === 'low' || x === 'open'
+}
+
+/** Sanity range for low-wall heights (m): a kerb up to a tall garden wall. */
+export const MIN_LOW_WALL_HEIGHT_M = 0.1
+export const MAX_LOW_WALL_HEIGHT_M = 2
+
+export function clampLowWallHeightM(m: number): number {
+  if (!Number.isFinite(m)) return DEFAULT_LOW_WALL_HEIGHT_M
+  return Math.min(MAX_LOW_WALL_HEIGHT_M, Math.max(MIN_LOW_WALL_HEIGHT_M, m))
+}
+
+/** Vertical form actually used for a segment (unset → full height). */
+export function effectiveWallForm(seg: Pick<WallSegment, 'form'> | undefined): WallForm {
+  return isWallForm(seg?.form) ? seg.form : 'full'
+}
+
+/** Height of a low wall (own value, else the default parapet height). */
+export function effectiveLowWallHeightM(seg: Pick<WallSegment, 'lowHeightM'> | undefined): number {
+  const own = seg?.lowHeightM
+  if (typeof own === 'number' && Number.isFinite(own)) return clampLowWallHeightM(own)
+  return DEFAULT_LOW_WALL_HEIGHT_M
+}
+
+/** Plan dash pattern per form so fences and open edges read differently from real walls. */
+export function wallFormPlanDash(f: WallForm): number[] | undefined {
+  if (f === 'open') return [6, 6]
+  if (f === 'low') return [14, 4]
+  return undefined
+}
+
+/** Plan stroke opacity per form. */
+export function wallFormPlanOpacity(f: WallForm): number {
+  if (f === 'open') return 0.45
+  if (f === 'low') return 0.75
+  return 1
 }
 
 type WallDefaults = Pick<EditorSettings, 'defaultWallThicknessM' | 'defaultWallMaterial'>

@@ -17,8 +17,11 @@ import {
   isFurnitureKind,
 } from '../lib/furnitureCatalog'
 import {
+  effectiveWallForm,
   effectiveWallMaterial,
   effectiveWallThicknessM,
+  wallFormPlanDash,
+  wallFormPlanOpacity,
   wallMaterialPlanHatch,
   wallMaterialPlanStroke,
 } from '../lib/wallConstruction'
@@ -40,7 +43,7 @@ const ROTATE_STEP_DEG = 15
 /**
  * Furnish tab canvas: the electrical plan geometry (walls, rooms, openings) is drawn
  * read-only underneath, and furniture / sanitary blocks on top are selectable, draggable
- * and rotatable. Nothing here touches the BOM — it is metadata for the 3D render prompt.
+ * and rotatable. Nothing here touches the BOM — it only feeds the 3D preview.
  */
 export const FurnishEditor = forwardRef<KonvaStage, FurnishEditorProps>(
   function FurnishEditor({ className }, ref) {
@@ -234,6 +237,7 @@ export const FurnishEditor = forwardRef<KonvaStage, FurnishEditorProps>(
               })}
               {plan.wallSegments.map((seg) => {
                 const material = effectiveWallMaterial(seg, editorSettings)
+                const form = effectiveWallForm(seg)
                 const hatch = wallMaterialPlanHatch(material)
                 const thickPx = Math.max(
                   4,
@@ -252,6 +256,8 @@ export const FurnishEditor = forwardRef<KonvaStage, FurnishEditorProps>(
                       stroke={wallMaterialPlanStroke(material)}
                       strokeWidth={thickPx}
                       lineCap="round"
+                      dash={wallFormPlanDash(form)}
+                      opacity={wallFormPlanOpacity(form)}
                     />
                     {hatch ? (
                       <Line

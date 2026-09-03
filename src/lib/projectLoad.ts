@@ -17,11 +17,12 @@ import type {
   RackFrame,
   RackGear,
   RackPatchPanelLink,
+  WallForm,
   WallMaterial,
   WallMountDevice,
 } from '../types/project'
 import { DEFAULT_WALL_THICKNESS_M, DEVICE_TYPES } from '../types/project'
-import { clampWallThicknessM, isWallMaterial } from './wallConstruction'
+import { clampLowWallHeightM, clampWallThicknessM, isWallForm, isWallMaterial } from './wallConstruction'
 import {
   clampFurnitureSizeM,
   furnitureSpec,
@@ -288,6 +289,11 @@ export function ensureDefaultsDeep(p: PlanstudioProject): PlanstudioProject {
           thicknessM:
             typeof t === 'number' && Number.isFinite(t) ? clampWallThicknessM(t) : undefined,
           material: isWallMaterial(m) ? m : undefined,
+          form: isWallForm(loose.form) ? (loose.form as WallForm) : undefined,
+          lowHeightM:
+            typeof loose.lowHeightM === 'number' && Number.isFinite(loose.lowHeightM)
+              ? clampLowWallHeightM(loose.lowHeightM)
+              : undefined,
         }
       }),
       furniture: (() => {

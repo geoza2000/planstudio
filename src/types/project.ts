@@ -117,7 +117,7 @@ export interface PointM {
   y: number
 }
 
-/** Surface finish of a wall; drives the plan hatch and the generated 3D-render prompt. */
+/** Surface finish of a wall; drives the plan hatch and the 3D preview material. */
 export type WallMaterial = 'painted' | 'rock'
 
 export const WALL_MATERIALS: WallMaterial[] = ['painted', 'rock']
@@ -129,11 +129,34 @@ export function wallMaterialLabel(m: WallMaterial): string {
   return m === 'rock' ? 'Rock / stone' : 'Painted'
 }
 
-/** Longer phrasing for documentation and the render prompt. */
+/** Longer phrasing for documentation. */
 export function wallMaterialDescription(m: WallMaterial): string {
   return m === 'rock'
     ? 'exposed natural stone masonry (rough, irregular courses)'
     : 'smooth plastered wall with matte painted finish'
+}
+
+/**
+ * Vertical form of a wall: a full-height wall, a low parapet / garden fence, or an open
+ * boundary that only delimits a space (a terrace edge, a change of floor finish). Rooms are
+ * still detected from open and low walls; only the 3D preview and plan stroke differ.
+ */
+export type WallForm = 'full' | 'low' | 'open'
+
+export const WALL_FORMS: WallForm[] = ['full', 'low', 'open']
+
+/** Height used by `'low'` walls when the segment does not carry its own value (m). */
+export const DEFAULT_LOW_WALL_HEIGHT_M = 1
+
+export function wallFormLabel(f: WallForm): string {
+  switch (f) {
+    case 'full':
+      return 'Full height'
+    case 'low':
+      return 'Low (fence / parapet)'
+    case 'open':
+      return 'Open (no wall)'
+  }
 }
 
 export interface WallSegment {
@@ -144,6 +167,10 @@ export interface WallSegment {
   thicknessM?: number
   /** Default finish for both faces; falls back to `editorSettings.defaultWallMaterial`. */
   material?: WallMaterial
+  /** Vertical form; unset means `'full'`. */
+  form?: WallForm
+  /** Height of a `'low'` wall (m); falls back to `DEFAULT_LOW_WALL_HEIGHT_M`. */
+  lowHeightM?: number
 }
 
 /** Structured loads / infrastructure hints (editable); used in requirements rollup. */
@@ -204,7 +231,7 @@ export interface PlanRegion {
   /**
    * User toggle: this space is outdoors (terrace, balcony, courtyard, garden). Survives
    * topology reconciles, unlike `kind`, which auto-rooms always force back to `'room'`.
-   * Drives the plan fill and tells the 3D render prompt there is sky above, not a ceiling.
+   * Drives the plan fill and leaves the 3D preview open to the sky (no ceiling).
    */
   isExternal?: boolean
 }
@@ -214,7 +241,7 @@ export function regionIsExternal(r: Pick<PlanRegion, 'kind' | 'isExternal'>): bo
   return r.isExternal === true || r.kind === 'patio'
 }
 
-/** Grouping for the furnish palette; also used to bucket items in the render prompt. */
+/** Grouping for the furnish palette. */
 export type FurnitureCategory = 'living' | 'bedroom' | 'kitchen' | 'bathroom' | 'outdoor'
 
 /**
@@ -261,7 +288,7 @@ export interface FurnitureItem {
   y: number
   widthM: number
   depthM: number
-  /** Height above the floor (m) — metadata only, used by the 3D render prompt. */
+  /** Height above the floor (m) — metadata only, used by the 3D preview. */
   heightM: number
   rotationDeg: number
   /** Room this item was dropped in, when the point fell inside a region polygon. */
@@ -511,6 +538,6 @@ export interface PlanstudioProject {
   deviceCatalog: DeviceTemplate[]
 }
 
-export type EditorTab = 'floor' | 'wall' | 'furnish' | 'panel' | 'rack' | 'devices'
+export type EditorTab = 'floor' | 'wall' | 'furnish' | 'preview3d' | 'panel' | 'rack' | 'devices'
 
 export type FloorTool = 'select' | 'wall' | 'region' | 'opening'

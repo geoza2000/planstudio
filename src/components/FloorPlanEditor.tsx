@@ -32,7 +32,10 @@ import { getKonvaGroupScreenAnchorBelow } from '../lib/konvaScreenAnchor'
 import { deviceFill, deviceGlyph } from '../lib/deviceStyle'
 import {
   effectiveWallMaterial,
+  effectiveWallForm,
   effectiveWallThicknessM,
+  wallFormPlanDash,
+  wallFormPlanOpacity,
   wallMaterialPlanHatch,
   wallMaterialPlanStroke,
 } from '../lib/wallConstruction'
@@ -719,6 +722,7 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
               const wallSel = tool === 'select' && selectedWallIdSet.has(seg.id)
               const segMaterial = effectiveWallMaterial(seg, editorSettings)
               const segHatch = wallMaterialPlanHatch(segMaterial)
+              const segForm = effectiveWallForm(seg)
               const wallThickPx = Math.max(
                 4,
                 effectiveWallThicknessM(seg, editorSettings) * PPM,
@@ -805,6 +809,8 @@ export const FloorPlanEditor = forwardRef<KonvaStage, FloorPlanEditorProps>(
                     stroke={wallSel ? '#ffffff' : wallMaterialPlanStroke(segMaterial)}
                     strokeWidth={wallThickPx + (wallSel ? 2 : 0)}
                     lineCap="round"
+                    dash={wallFormPlanDash(segForm)}
+                    opacity={wallFormPlanOpacity(segForm)}
                     hitStrokeWidth={Math.max(16, wallThickPx + 10)}
                   />
                   {segHatch ? (

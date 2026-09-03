@@ -46,7 +46,7 @@ import {
   clampWallOpeningSizeM,
   newWallOpeningMeters,
 } from '../lib/wallOpeningDefaults'
-import { clampWallThicknessM } from '../lib/wallConstruction'
+import { clampLowWallHeightM, clampWallThicknessM } from '../lib/wallConstruction'
 import {
   clampFurnitureSizeM,
   createFurnitureItem,
@@ -75,6 +75,7 @@ import type {
   RackPatchPanelLink,
   RackPortEndpoint,
   RegionKind,
+  WallForm,
   WallMaterial,
   WallMountDevice,
   WallOpening,
@@ -506,7 +507,12 @@ export type ProjectStore = {
   /** Set thickness and/or material on one or many selected plan wall segments. */
   updateWallSegmentsConstruction: (
     ids: string[],
-    partial: { thicknessM?: number; material?: WallMaterial },
+    partial: {
+      thicknessM?: number
+      material?: WallMaterial
+      form?: WallForm
+      lowHeightM?: number
+    },
   ) => void
   setNextRegionKind: (k: RegionKind) => void
   appendRegionVertex: (p: PointM) => void
@@ -974,6 +980,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                     ? { thicknessM: clampWallThicknessM(partial.thicknessM) }
                     : {}),
                   ...(partial.material !== undefined ? { material: partial.material } : {}),
+                  ...(partial.form !== undefined ? { form: partial.form } : {}),
+                  ...(partial.lowHeightM !== undefined
+                    ? { lowHeightM: clampLowWallHeightM(partial.lowHeightM) }
+                    : {}),
                 }
               }),
             },

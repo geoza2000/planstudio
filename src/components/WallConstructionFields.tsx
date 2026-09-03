@@ -1,8 +1,17 @@
 import {
+  MAX_LOW_WALL_HEIGHT_M,
   MAX_WALL_THICKNESS_M,
+  MIN_LOW_WALL_HEIGHT_M,
   MIN_WALL_THICKNESS_M,
 } from '../lib/wallConstruction'
-import { WALL_MATERIALS, wallMaterialLabel, type WallMaterial } from '../types/project'
+import {
+  WALL_FORMS,
+  WALL_MATERIALS,
+  wallFormLabel,
+  wallMaterialLabel,
+  type WallForm,
+  type WallMaterial,
+} from '../types/project'
 
 type WallConstructionFieldsProps = {
   thicknessM: number
@@ -10,8 +19,15 @@ type WallConstructionFieldsProps = {
   /** Multi-selection with differing values: show a placeholder instead of a wrong number. */
   mixedThickness?: boolean
   mixedMaterial?: boolean
+  /** Omit `form` for the project-defaults variant, which has no vertical form. */
+  form?: WallForm
+  mixedForm?: boolean
+  lowHeightM?: number
+  mixedLowHeight?: boolean
   onThicknessChange: (m: number) => void
   onMaterialChange: (m: WallMaterial) => void
+  onFormChange?: (f: WallForm) => void
+  onLowHeightChange?: (m: number) => void
   heading?: string
   hint?: string
 }
@@ -22,8 +38,14 @@ export function WallConstructionFields({
   material,
   mixedThickness = false,
   mixedMaterial = false,
+  form,
+  mixedForm = false,
+  lowHeightM,
+  mixedLowHeight = false,
   onThicknessChange,
   onMaterialChange,
+  onFormChange,
+  onLowHeightChange,
   heading = 'Construction',
   hint,
 }: WallConstructionFieldsProps) {
@@ -68,6 +90,46 @@ export function WallConstructionFields({
           </select>
         </label>
       </div>
+      {form !== undefined && onFormChange ? (
+        <div className="field-row">
+          <label className="field">
+            <span>Form</span>
+            <select
+              value={mixedForm ? '' : form}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '') return
+                onFormChange(v as WallForm)
+              }}
+            >
+              {mixedForm ? <option value="">(mixed)</option> : null}
+              {WALL_FORMS.map((f) => (
+                <option key={f} value={f}>
+                  {wallFormLabel(f)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {(mixedForm || form === 'low') && onLowHeightChange ? (
+            <label className="field">
+              <span>Fence height (m)</span>
+              <input
+                type="number"
+                min={MIN_LOW_WALL_HEIGHT_M}
+                max={MAX_LOW_WALL_HEIGHT_M}
+                step={0.05}
+                placeholder={mixedLowHeight ? 'mixed' : undefined}
+                value={mixedLowHeight || lowHeightM === undefined ? '' : lowHeightM}
+                onChange={(e) => {
+                  const v = Number(e.target.value)
+                  if (!Number.isFinite(v)) return
+                  onLowHeightChange(v)
+                }}
+              />
+            </label>
+          ) : null}
+        </div>
+      ) : null}
       {hint ? (
         <p className="muted small" style={{ marginTop: 0 }}>
           {hint}

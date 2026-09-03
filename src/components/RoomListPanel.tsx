@@ -39,7 +39,7 @@ export function RoomListPanel() {
       <h3 className="side-heading">Rooms ({rows.length})</h3>
       <p className="muted small" style={{ marginTop: 0 }}>
         Mark terraces, balconies and courtyards as <strong>outdoor</strong>: they are drawn
-        green on the plan and the 3D render prompt gives them sky instead of a ceiling.
+        green on the plan and the 3D preview leaves them open to the sky.
       </p>
       <ul className="room-list">
         {rows.map(({ region, area }) => {

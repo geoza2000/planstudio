@@ -125,7 +125,7 @@ export function FurnitureInspector() {
         ))}
       </div>
       <label className="field">
-        <span>Notes (used in the render prompt)</span>
+        <span>Notes</span>
         <input
           value={item.notes ?? ''}
           placeholder="e.g. dark grey linen, oak legs"

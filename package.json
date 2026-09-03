@@ -12,6 +12,7 @@
     "test:fixtures:wall": "npx tsx scripts/validate-wall-fixtures.ts"
   },
   "dependencies": {
+    "@types/three": "^0.185.4",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "konva": "^10.2.5",
@@ -19,6 +20,7 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-konva": "^19.2.3",
+    "three": "^0.185.1",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

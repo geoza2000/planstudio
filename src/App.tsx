@@ -15,7 +15,8 @@ import { FurnishEditor } from './components/FurnishEditor'
 import { FurniturePalette } from './components/FurniturePalette'
 import { FurnitureInspector } from './components/FurnitureInspector'
 import { WallOpeningInspector } from './components/WallOpeningInspector'
-import { RenderPromptModal } from './components/RenderPromptModal'
+import { Preview3D } from './components/Preview3D'
+import { Preview3DControls } from './components/Preview3DControls'
 import { RoomListPanel } from './components/RoomListPanel'
 import {
   downloadBlob,
@@ -56,6 +57,8 @@ import {
   rackOccupiedRUHigh,
 } from './lib/requirementsAggregate'
 import {
+  effectiveLowWallHeightM,
+  effectiveWallForm,
   effectiveWallMaterial,
   effectiveWallThicknessM,
   MAX_WALL_THICKNESS_M,
@@ -76,6 +79,7 @@ import type {
   WallSheet,
 } from './types/project'
 import {
+  DEFAULT_LOW_WALL_HEIGHT_M,
   CONNECTOR_SUBTYPES,
   DEVICE_TYPES,
   regionIsExternal,
@@ -471,12 +475,18 @@ function App() {
     )
     const thicknesses = segs.map((w) => effectiveWallThicknessM(w, editorSettings))
     const materials = segs.map((w) => effectiveWallMaterial(w, editorSettings))
-    const first = { t: thicknesses[0], m: materials[0] }
+    const forms = segs.map((w) => effectiveWallForm(w))
+    const lowHeights = segs.map((w) => effectiveLowWallHeightM(w))
+    const first = { t: thicknesses[0], m: materials[0], f: forms[0], lh: lowHeights[0] }
     return {
       thicknessM: first.t ?? editorSettings.defaultWallThicknessM,
       material: first.m ?? editorSettings.defaultWallMaterial,
+      form: first.f ?? 'full',
+      lowHeightM: first.lh ?? DEFAULT_LOW_WALL_HEIGHT_M,
       mixedThickness: thicknesses.some((t) => t !== first.t),
       mixedMaterial: materials.some((m) => m !== first.m),
+      mixedForm: forms.some((f) => f !== first.f),
+      mixedLowHeight: lowHeights.some((h) => h !== first.lh),
     }
   }, [floorPlan?.wallSegments, selectedWallSegmentIds, editorSettings])
 
@@ -520,7 +530,6 @@ function App() {
     return o
   }, [wallSheets])
 
-  const [showRenderPrompt, setShowRenderPrompt] = useState(false)
   const [pdfExportBusy, setPdfExportBusy] = useState(false)
   const pdfExportBusyRef = useRef(false)
 
@@ -533,6 +542,7 @@ function App() {
       floor: floorStageRef.current,
       wall: wallStageRef.current,
       furnish: furnishStageRef.current,
+      preview3d: null,
       panel: panelStageRef.current,
       rack: rackStageRef.current,
       devices: null,
@@ -908,6 +918,7 @@ function App() {
     { id: 'floor', label: 'Floor plan' },
     { id: 'wall', label: 'Wall' },
     { id: 'furnish', label: 'Furnish' },
+    { id: 'preview3d', label: '3D preview' },
     { id: 'panel', label: 'Panel' },
     { id: 'rack', label: 'Rack' },
     { id: 'devices', label: 'Devices' },
@@ -952,14 +963,6 @@ function App() {
             title="Single PDF: project details, floor plans in order, each floor with rooms and wall elevations, full device list, panel and rack (diagram + equipment + shopping), then shopping by manufacturer and by floor."
           >
             {pdfExportBusy ? 'Building PDF…' : 'Export PDF'}
-          </button>
-          <button
-            type="button"
-            className="btn secondary"
-            onClick={() => setShowRenderPrompt(true)}
-            title="Build a text brief for an LLM / gen-AI model to render this floor in 3D: rooms, wall thickness and finish, doors and windows at real sizes, furniture and visible fittings."
-          >
-            3D render prompt
           </button>
           <button
             type="button"
@@ -1087,6 +1090,8 @@ function App() {
             </div>
           ) : activeTab === 'furnish' ? (
             <FurnitureInspector />
+          ) : activeTab === 'preview3d' ? (
+            <Preview3DControls />
           ) : (
           <>
           {(activeTab === 'floor' || activeTab === 'wall') && (
@@ -1251,6 +1256,16 @@ function App() {
                     onMaterialChange={(m) =>
                       updateWallSegmentsConstruction(selectedWallSegmentIds, { material: m })
                     }
+                    form={multiWallConstruction.form}
+                    mixedForm={multiWallConstruction.mixedForm}
+                    lowHeightM={multiWallConstruction.lowHeightM}
+                    mixedLowHeight={multiWallConstruction.mixedLowHeight}
+                    onFormChange={(f) =>
+                      updateWallSegmentsConstruction(selectedWallSegmentIds, { form: f })
+                    }
+                    onLowHeightChange={(m) =>
+                      updateWallSegmentsConstruction(selectedWallSegmentIds, { lowHeightM: m })
+                    }
                     hint={`Applies to all ${selectedWallSegmentIds.length} selected segments.`}
                   />
                 </div>
@@ -1331,13 +1346,21 @@ function App() {
                   <WallConstructionFields
                     thicknessM={effectiveWallThicknessM(selectedWallSeg, editorSettings)}
                     material={effectiveWallMaterial(selectedWallSeg, editorSettings)}
+                    form={effectiveWallForm(selectedWallSeg)}
+                    lowHeightM={effectiveLowWallHeightM(selectedWallSeg)}
                     onThicknessChange={(m) =>
                       updateWallSegmentsConstruction([selectedWallSeg.id], { thicknessM: m })
                     }
                     onMaterialChange={(m) =>
                       updateWallSegmentsConstruction([selectedWallSeg.id], { material: m })
                     }
-                    hint="Construction metadata: drawn to scale on the plan and used by the 3D render prompt. Each room face can override the finish on the Wall tab."
+                    onFormChange={(f) =>
+                      updateWallSegmentsConstruction([selectedWallSeg.id], { form: f })
+                    }
+                    onLowHeightChange={(m) =>
+                      updateWallSegmentsConstruction([selectedWallSeg.id], { lowHeightM: m })
+                    }
+                    hint="Drawn to scale on the plan and built in the 3D preview. Low and open forms suit terrace edges and garden fences; each room face can override the finish on the Wall tab."
                   />
                 </div>
               )}
@@ -2423,6 +2446,12 @@ function App() {
               </div>
             </section>
             <section
+              className={activeTab === 'preview3d' ? 'editor-pane active' : 'editor-pane'}
+              aria-hidden={activeTab !== 'preview3d'}
+            >
+              <Preview3D active={activeTab === 'preview3d'} />
+            </section>
+            <section
               className={activeTab === 'panel' ? 'editor-pane active' : 'editor-pane'}
               aria-hidden={activeTab !== 'panel'}
             >
@@ -2768,9 +2797,6 @@ function App() {
               onPatchLabelChange={setRackPatchPanelLink}
             />
           </aside>
-        ) : null}
-        {showRenderPrompt ? (
-          <RenderPromptModal onClose={() => setShowRenderPrompt(false)} />
         ) : null}
         {pendingImportMigration ? (
           <UnlinkedDevicesImportModal

@@ -1,0 +1,2304 @@
+{
+  "schemaVersion": 15,
+  "name": "Demo house",
+  "updatedAt": "2026-09-03T14:32:32.452Z",
+  "floors": [
+    {
+      "id": "cmHWCEMgVL7mKJJ9tLdIH",
+      "label": "Ground",
+      "sortOrder": 0,
+      "plan": {
+        "label": "Ground plan",
+        "widthM": 15,
+        "depthM": 8,
+        "wallSegments": [
+          {
+            "id": "n-living",
+            "a": {
+              "x": 0,
+              "y": 0
+            },
+            "b": {
+              "x": 6,
+              "y": 0
+            },
+            "thicknessM": 0.25,
+            "material": "rock"
+          },
+          {
+            "id": "n-kitchen",
+            "a": {
+              "x": 6,
+              "y": 0
+            },
+            "b": {
+              "x": 10,
+              "y": 0
+            },
+            "thicknessM": 0.25,
+            "material": "painted"
+          },
+          {
+            "id": "n-terrace",
+            "a": {
+              "x": 10,
+              "y": 0
+            },
+            "b": {
+              "x": 14,
+              "y": 0
+            },
+            "thicknessM": 0.2,
+            "material": "rock",
+            "form": "low",
+            "lowHeightM": 1
+          },
+          {
+            "id": "m-bed",
+            "a": {
+              "x": 0,
+              "y": 4
+            },
+            "b": {
+              "x": 4,
+              "y": 4
+            },
+            "thicknessM": 0.1,
+            "material": "painted"
+          },
+          {
+            "id": "m-bath",
+            "a": {
+              "x": 4,
+              "y": 4
+            },
+            "b": {
+              "x": 6,
+              "y": 4
+            },
+            "thicknessM": 0.1,
+            "material": "painted"
+          },
+          {
+            "id": "m-hall",
+            "a": {
+              "x": 6,
+              "y": 4
+            },
+            "b": {
+              "x": 10,
+              "y": 4
+            },
+            "thicknessM": 0.1,
+            "material": "painted"
+          },
+          {
+            "id": "s-terrace",
+            "a": {
+              "x": 10,
+              "y": 4
+            },
+            "b": {
+              "x": 14,
+              "y": 4
+            },
+            "thicknessM": 0.2,
+            "material": "painted",
+            "form": "open"
+          },
+          {
+            "id": "s-bed",
+            "a": {
+              "x": 0,
+              "y": 7
+            },
+            "b": {
+              "x": 4,
+              "y": 7
+            },
+            "thicknessM": 0.25,
+            "material": "painted"
+          },
+          {
+            "id": "s-bath",
+            "a": {
+              "x": 4,
+              "y": 7
+            },
+            "b": {
+              "x": 6,
+              "y": 7
+            },
+            "thicknessM": 0.25,
+            "material": "painted"
+          },
+          {
+            "id": "s-hall",
+            "a": {
+              "x": 6,
+              "y": 7
+            },
+            "b": {
+              "x": 10,
+              "y": 7
+            },
+            "thicknessM": 0.25,
+            "material": "painted"
+          },
+          {
+            "id": "w-living",
+            "a": {
+              "x": 0,
+              "y": 0
+            },
+            "b": {
+              "x": 0,
+              "y": 4
+            },
+            "thicknessM": 0.25,
+            "material": "painted"
+          },
+          {
+            "id": "w-bed",
+            "a": {
+              "x": 0,
+              "y": 4
+            },
+            "b": {
+              "x": 0,
+              "y": 7
+            },
+            "thicknessM": 0.25,
+            "material": "painted"
+          },
+          {
+            "id": "p-bath",
+            "a": {
+              "x": 4,
+              "y": 4
+            },
+            "b": {
+              "x": 4,
+              "y": 7
+            },
+            "thicknessM": 0.1,
+            "material": "painted"
+          },
+          {
+            "id": "p-kitchen",
+            "a": {
+              "x": 6,
+              "y": 0
+            },
+            "b": {
+              "x": 6,
+              "y": 4
+            },
+            "thicknessM": 0.1,
+            "material": "painted"
+          },
+          {
+            "id": "p-hall",
+            "a": {
+              "x": 6,
+              "y": 4
+            },
+            "b": {
+              "x": 6,
+              "y": 7
+            },
+            "thicknessM": 0.1,
+            "material": "painted"
+          },
+          {
+            "id": "e-kitchen",
+            "a": {
+              "x": 10,
+              "y": 0
+            },
+            "b": {
+              "x": 10,
+              "y": 4
+            },
+            "thicknessM": 0.25,
+            "material": "painted"
+          },
+          {
+            "id": "e-hall",
+            "a": {
+              "x": 10,
+              "y": 4
+            },
+            "b": {
+              "x": 10,
+              "y": 7
+            },
+            "thicknessM": 0.25,
+            "material": "painted"
+          },
+          {
+            "id": "e-terrace",
+            "a": {
+              "x": 14,
+              "y": 0
+            },
+            "b": {
+              "x": 14,
+              "y": 4
+            },
+            "thicknessM": 0.2,
+            "material": "rock",
+            "form": "low",
+            "lowHeightM": 1
+          }
+        ],
+        "devices": [
+          {
+            "id": "EdTAwgrQuK5i9CtIOXpvX",
+            "type": "light",
+            "label": "light",
+            "x": 3,
+            "y": 2,
+            "circuitRef": "",
+            "productName": "Generic light",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "b4NT0KU9Z9-iq9eaNfQBU",
+            "mounting": "ceiling",
+            "ceilingHeightM": 2.7,
+            "requirements": {
+              "dinTe": 2,
+              "dinRailMm": 35,
+              "knxChannelRole": "output_actuator",
+              "notes": "Typical: KNX / DIN actuator or relay (adjust TE & rail)"
+            }
+          },
+          {
+            "id": "0yWgwaH0fx6jGQLz61Ly_",
+            "type": "light",
+            "label": "light",
+            "x": 5,
+            "y": 1,
+            "circuitRef": "",
+            "productName": "Generic light",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "b4NT0KU9Z9-iq9eaNfQBU",
+            "mounting": "ceiling",
+            "ceilingHeightM": 2.7,
+            "requirements": {
+              "dinTe": 2,
+              "dinRailMm": 35,
+              "knxChannelRole": "output_actuator",
+              "notes": "Typical: KNX / DIN actuator or relay (adjust TE & rail)"
+            }
+          },
+          {
+            "id": "5pFLJjtVSCS6PThcjGrYA",
+            "type": "light",
+            "label": "light",
+            "x": 8,
+            "y": 2,
+            "circuitRef": "",
+            "productName": "Generic light",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "b4NT0KU9Z9-iq9eaNfQBU",
+            "mounting": "ceiling",
+            "ceilingHeightM": 2.7,
+            "requirements": {
+              "dinTe": 2,
+              "dinRailMm": 35,
+              "knxChannelRole": "output_actuator",
+              "notes": "Typical: KNX / DIN actuator or relay (adjust TE & rail)"
+            }
+          },
+          {
+            "id": "siGrU25cjSPIDmRQtyWQp",
+            "type": "light",
+            "label": "light",
+            "x": 2,
+            "y": 5.5,
+            "circuitRef": "",
+            "productName": "Generic light",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "b4NT0KU9Z9-iq9eaNfQBU",
+            "mounting": "ceiling",
+            "ceilingHeightM": 2.7,
+            "requirements": {
+              "dinTe": 2,
+              "dinRailMm": 35,
+              "knxChannelRole": "output_actuator",
+              "notes": "Typical: KNX / DIN actuator or relay (adjust TE & rail)"
+            }
+          },
+          {
+            "id": "QQZIFBH6ihb5nNP_yfCn_",
+            "type": "light",
+            "label": "light",
+            "x": 5,
+            "y": 5.5,
+            "circuitRef": "",
+            "productName": "Generic light",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "b4NT0KU9Z9-iq9eaNfQBU",
+            "mounting": "ceiling",
+            "ceilingHeightM": 2.7,
+            "requirements": {
+              "dinTe": 2,
+              "dinRailMm": 35,
+              "knxChannelRole": "output_actuator",
+              "notes": "Typical: KNX / DIN actuator or relay (adjust TE & rail)"
+            }
+          },
+          {
+            "id": "rodRWCreiCMmPf1iybEuv",
+            "type": "light",
+            "label": "light",
+            "x": 8,
+            "y": 5.5,
+            "circuitRef": "",
+            "productName": "Generic light",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "b4NT0KU9Z9-iq9eaNfQBU",
+            "mounting": "ceiling",
+            "ceilingHeightM": 2.7,
+            "requirements": {
+              "dinTe": 2,
+              "dinRailMm": 35,
+              "knxChannelRole": "output_actuator",
+              "notes": "Typical: KNX / DIN actuator or relay (adjust TE & rail)"
+            }
+          },
+          {
+            "id": "UUry07Vd6la2jLx1xl03s",
+            "type": "switch",
+            "label": "switch",
+            "x": 3.4,
+            "y": 3.8,
+            "circuitRef": "",
+            "productName": "Generic switch",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "ZI2XhN49sol2uepr21RMU",
+            "mounting": "wall",
+            "requirements": {
+              "ethernetPorts": 0,
+              "knxChannelRole": "binary_input",
+              "notes": "Wall switch — bus binary input or rocker module"
+            }
+          },
+          {
+            "id": "jKv6Pf3AwWl_4Rnb1XpWM",
+            "type": "switch",
+            "label": "switch",
+            "x": 6.2,
+            "y": 1.2,
+            "circuitRef": "",
+            "productName": "Generic switch",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "ZI2XhN49sol2uepr21RMU",
+            "mounting": "wall",
+            "requirements": {
+              "ethernetPorts": 0,
+              "knxChannelRole": "binary_input",
+              "notes": "Wall switch — bus binary input or rocker module"
+            }
+          },
+          {
+            "id": "Fu30PxS1o2xqEmY3h-rjl",
+            "type": "outlet",
+            "label": "outlet",
+            "x": 4.8,
+            "y": 0.2,
+            "circuitRef": "",
+            "productName": "Generic outlet",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "YMoewfrHzsjI82xzDOr0y",
+            "mounting": "wall",
+            "requirements": {
+              "ethernetPorts": 0,
+              "notes": "Power outlet"
+            }
+          },
+          {
+            "id": "FZIeA-pz9g8V-gVk4pNeh",
+            "type": "outlet",
+            "label": "outlet",
+            "x": 0.2,
+            "y": 6.5,
+            "circuitRef": "",
+            "productName": "Generic outlet",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "YMoewfrHzsjI82xzDOr0y",
+            "mounting": "wall",
+            "requirements": {
+              "ethernetPorts": 0,
+              "notes": "Power outlet"
+            }
+          },
+          {
+            "id": "sZEDzLGvjPPyT6zPnY1sN",
+            "type": "motion_sensor",
+            "label": "motion sensor",
+            "x": 8,
+            "y": 4.3,
+            "circuitRef": "",
+            "productName": "Generic motion sensor",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "-LUKjj8H4zkVlIjQBDN0X",
+            "mounting": "ceiling",
+            "ceilingHeightM": 2.7,
+            "requirements": {
+              "dinTe": 2,
+              "dinRailMm": 35,
+              "knxChannelRole": "bus_sensor",
+              "notes": "Motion / presence on bus (same panel planning as loads)"
+            }
+          },
+          {
+            "id": "dxdQntiJB3InyuXLM7XTF",
+            "type": "camera",
+            "label": "camera",
+            "x": 13.8,
+            "y": 0.2,
+            "circuitRef": "",
+            "productName": "Generic camera",
+            "unitPrice": 0,
+            "billCategory": "standard",
+            "templateId": "EPeHo1GBqn-ZqVnfpyXgj",
+            "mounting": "wall",
+            "requirements": {
+              "poeWatts": 12,
+              "ethernetPorts": 1,
+              "protectCamera": true,
+              "notes": "PoE + Protect / NVR path"
+            }
+          }
+        ],
+        "regions": [
+          {
+            "id": "z-Wb3NteAzvcJAqhhUxhi",
+            "kind": "room",
+            "label": "Hall",
+            "vertices": [
+              {
+                "x": 6,
+                "y": 4
+              },
+              {
+                "x": 10,
+                "y": 4
+              },
+              {
+                "x": 10,
+                "y": 7
+              },
+              {
+                "x": 6,
+                "y": 7
+              }
+            ],
+            "wallCycleSignature": "e-hall|m-hall|p-hall|s-hall"
+          },
+          {
+            "id": "EaBZVo0A-7jL0DNP9ipBw",
+            "kind": "room",
+            "label": "Terrace",
+            "vertices": [
+              {
+                "x": 10,
+                "y": 0
+              },
+              {
+                "x": 14,
+                "y": 0
+              },
+              {
+                "x": 14,
+                "y": 4
+              },
+              {
+                "x": 10,
+                "y": 4
+              }
+            ],
+            "wallCycleSignature": "e-kitchen|e-terrace|n-terrace|s-terrace",
+            "isExternal": true
+          },
+          {
+            "id": "O-LLjDlpUZ1R9I2_VPAEB",
+            "kind": "room",
+            "label": "Kitchen",
+            "vertices": [
+              {
+                "x": 6,
+                "y": 0
+              },
+              {
+                "x": 10,
+                "y": 0
+              },
+              {
+                "x": 10,
+                "y": 4
+              },
+              {
+                "x": 6,
+                "y": 4
+              }
+            ],
+            "wallCycleSignature": "e-kitchen|m-hall|n-kitchen|p-kitchen"
+          },
+          {
+            "id": "43-WiFwXdYq9ZnIdTMHmE",
+            "kind": "room",
+            "label": "Living room",
+            "vertices": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 6,
+                "y": 0
+              },
+              {
+                "x": 6,
+                "y": 4
+              },
+              {
+                "x": 4,
+                "y": 4
+              },
+              {
+                "x": 0,
+                "y": 4
+              }
+            ],
+            "wallCycleSignature": "m-bath|m-bed|n-living|p-kitchen|w-living"
+          },
+          {
+            "id": "kX9mDcEkpqUoJnrVUHTSC",
+            "kind": "room",
+            "label": "Bathroom",
+            "vertices": [
+              {
+                "x": 4,
+                "y": 4
+              },
+              {
+                "x": 6,
+                "y": 4
+              },
+              {
+                "x": 6,
+                "y": 7
+              },
+              {
+                "x": 4,
+                "y": 7
+              }
+            ],
+            "wallCycleSignature": "m-bath|p-bath|p-hall|s-bath",
+            "parentRegionId": "z-Wb3NteAzvcJAqhhUxhi"
+          },
+          {
+            "id": "N36eBX2a8e-mB2GkPM5T4",
+            "kind": "room",
+            "label": "Bedroom",
+            "vertices": [
+              {
+                "x": 0,
+                "y": 4
+              },
+              {
+                "x": 4,
+                "y": 4
+              },
+              {
+                "x": 4,
+                "y": 7
+              },
+              {
+                "x": 0,
+                "y": 7
+              }
+            ],
+            "wallCycleSignature": "m-bed|p-bath|s-bed|w-bed"
+          }
+        ],
+        "furniture": [
+          {
+            "id": "1zQBKvqYa5syD_hYBDJo6",
+            "kind": "sofa_l",
+            "label": "",
+            "x": 2.2,
+            "y": 2.6,
+            "widthM": 2.8,
+            "depthM": 2.1,
+            "heightM": 0.8,
+            "rotationDeg": 0,
+            "roomRegionId": "43-WiFwXdYq9ZnIdTMHmE"
+          },
+          {
+            "id": "XLb-1C9PUeYJQiHU3Z4Vn",
+            "kind": "coffee_table",
+            "label": "",
+            "x": 1.8,
+            "y": 1,
+            "widthM": 1.1,
+            "depthM": 0.6,
+            "heightM": 0.4,
+            "rotationDeg": 0,
+            "roomRegionId": "43-WiFwXdYq9ZnIdTMHmE"
+          },
+          {
+            "id": "BTx6e4VdWjViWjQMjmH63",
+            "kind": "tv_table",
+            "label": "",
+            "x": 4.8,
+            "y": 0.45,
+            "widthM": 1.8,
+            "depthM": 0.45,
+            "heightM": 0.5,
+            "rotationDeg": 0,
+            "roomRegionId": "43-WiFwXdYq9ZnIdTMHmE"
+          },
+          {
+            "id": "AgF3pXW0hOFJrVhIHflie",
+            "kind": "armchair",
+            "label": "",
+            "x": 5.3,
+            "y": 2.6,
+            "widthM": 0.85,
+            "depthM": 0.85,
+            "heightM": 0.8,
+            "rotationDeg": 270,
+            "roomRegionId": "43-WiFwXdYq9ZnIdTMHmE"
+          },
+          {
+            "id": "vBvwkenFs08hesm7-uDXk",
+            "kind": "bookshelf",
+            "label": "",
+            "x": 0.3,
+            "y": 2.2,
+            "widthM": 1.4,
+            "depthM": 0.35,
+            "heightM": 2,
+            "rotationDeg": 270,
+            "roomRegionId": "43-WiFwXdYq9ZnIdTMHmE"
+          },
+          {
+            "id": "aTakX8Ij8Snl3xAfhfGPb",
+            "kind": "kitchen_counter",
+            "label": "",
+            "x": 7.65,
+            "y": 0.45,
+            "widthM": 2.8,
+            "depthM": 0.6,
+            "heightM": 0.9,
+            "rotationDeg": 0,
+            "roomRegionId": "O-LLjDlpUZ1R9I2_VPAEB"
+          },
+          {
+            "id": "54YdC0_6uzSPplBfRaITF",
+            "kind": "fridge",
+            "label": "",
+            "x": 9.5,
+            "y": 0.5,
+            "widthM": 0.7,
+            "depthM": 0.7,
+            "heightM": 1.9,
+            "rotationDeg": 0,
+            "roomRegionId": "O-LLjDlpUZ1R9I2_VPAEB"
+          },
+          {
+            "id": "0-gr-BBz-W_YQwfX_RccQ",
+            "kind": "kitchen_island",
+            "label": "",
+            "x": 8,
+            "y": 1.7,
+            "widthM": 1.6,
+            "depthM": 0.9,
+            "heightM": 0.9,
+            "rotationDeg": 0,
+            "roomRegionId": "O-LLjDlpUZ1R9I2_VPAEB"
+          },
+          {
+            "id": "lPGU_ZPuY8cOGf2MoDomd",
+            "kind": "dining_table",
+            "label": "",
+            "x": 8,
+            "y": 3,
+            "widthM": 1.6,
+            "depthM": 0.9,
+            "heightM": 0.75,
+            "rotationDeg": 0,
+            "roomRegionId": "O-LLjDlpUZ1R9I2_VPAEB"
+          },
+          {
+            "id": "RIbP695WN_ENAt64wk_v4",
+            "kind": "chair",
+            "label": "",
+            "x": 7.2,
+            "y": 3,
+            "widthM": 0.45,
+            "depthM": 0.45,
+            "heightM": 0.9,
+            "rotationDeg": 90,
+            "roomRegionId": "O-LLjDlpUZ1R9I2_VPAEB"
+          },
+          {
+            "id": "k0oSHNu6AQyfyPygObqKh",
+            "kind": "chair",
+            "label": "",
+            "x": 8.8,
+            "y": 3,
+            "widthM": 0.45,
+            "depthM": 0.45,
+            "heightM": 0.9,
+            "rotationDeg": 270,
+            "roomRegionId": "O-LLjDlpUZ1R9I2_VPAEB"
+          },
+          {
+            "id": "VBrcrCoLGwhovx8BI9NZU",
+            "kind": "chair",
+            "label": "",
+            "x": 8,
+            "y": 3.65,
+            "widthM": 0.45,
+            "depthM": 0.45,
+            "heightM": 0.9,
+            "rotationDeg": 180,
+            "roomRegionId": "O-LLjDlpUZ1R9I2_VPAEB"
+          },
+          {
+            "id": "U3T3GZgrcT7sgchattutP",
+            "kind": "bed_double",
+            "label": "",
+            "x": 2,
+            "y": 5.85,
+            "widthM": 1.6,
+            "depthM": 2,
+            "heightM": 0.55,
+            "rotationDeg": 180,
+            "roomRegionId": "N36eBX2a8e-mB2GkPM5T4"
+          },
+          {
+            "id": "tKplxkxtt8WJiTznqnOfX",
+            "kind": "nightstand",
+            "label": "",
+            "x": 0.85,
+            "y": 6.5,
+            "widthM": 0.45,
+            "depthM": 0.4,
+            "heightM": 0.55,
+            "rotationDeg": 180,
+            "roomRegionId": "N36eBX2a8e-mB2GkPM5T4"
+          },
+          {
+            "id": "6qt4JCycxaM4eOvwm9aGm",
+            "kind": "nightstand",
+            "label": "",
+            "x": 3.15,
+            "y": 6.5,
+            "widthM": 0.45,
+            "depthM": 0.4,
+            "heightM": 0.55,
+            "rotationDeg": 180,
+            "roomRegionId": "N36eBX2a8e-mB2GkPM5T4"
+          },
+          {
+            "id": "xXNPwqUtzJaHZgAJt73Bk",
+            "kind": "wardrobe",
+            "label": "",
+            "x": 1.2,
+            "y": 4.4,
+            "widthM": 1.8,
+            "depthM": 0.6,
+            "heightM": 2.4,
+            "rotationDeg": 0,
+            "roomRegionId": "N36eBX2a8e-mB2GkPM5T4"
+          },
+          {
+            "id": "L1SoAirG4_7PsFkAXgQw6",
+            "kind": "desk",
+            "label": "",
+            "x": 3.3,
+            "y": 4.6,
+            "widthM": 1.1,
+            "depthM": 0.55,
+            "heightM": 0.75,
+            "rotationDeg": 0,
+            "roomRegionId": "N36eBX2a8e-mB2GkPM5T4"
+          },
+          {
+            "id": "r30YxsxfQyraX-GYgnYh0",
+            "kind": "shower_glass",
+            "label": "",
+            "x": 5.5,
+            "y": 6.4,
+            "widthM": 0.9,
+            "depthM": 0.9,
+            "heightM": 2,
+            "rotationDeg": 0,
+            "roomRegionId": "kX9mDcEkpqUoJnrVUHTSC"
+          },
+          {
+            "id": "6_uSHvvVist-ncITdgb9O",
+            "kind": "toilet_inwall",
+            "label": "",
+            "x": 4.5,
+            "y": 6.5,
+            "widthM": 0.4,
+            "depthM": 0.7,
+            "heightM": 0.45,
+            "rotationDeg": 180,
+            "roomRegionId": "kX9mDcEkpqUoJnrVUHTSC"
+          },
+          {
+            "id": "BO4-6WCCGYCXjuzew7Z3E",
+            "kind": "sink_combo",
+            "label": "",
+            "x": 4.55,
+            "y": 4.5,
+            "widthM": 0.8,
+            "depthM": 0.5,
+            "heightM": 0.85,
+            "rotationDeg": 0,
+            "roomRegionId": "kX9mDcEkpqUoJnrVUHTSC"
+          },
+          {
+            "id": "P_aK7wQOMKGVrlgmi_olC",
+            "kind": "washing_machine",
+            "label": "",
+            "x": 9.5,
+            "y": 6.5,
+            "widthM": 0.6,
+            "depthM": 0.6,
+            "heightM": 0.85,
+            "rotationDeg": 180,
+            "roomRegionId": "z-Wb3NteAzvcJAqhhUxhi"
+          },
+          {
+            "id": "zvvtvHvVq5pvBAWC0twNp",
+            "kind": "outdoor_sofa_l",
+            "label": "",
+            "x": 11.6,
+            "y": 1.6,
+            "widthM": 2.6,
+            "depthM": 2,
+            "heightM": 0.75,
+            "rotationDeg": 0,
+            "roomRegionId": "EaBZVo0A-7jL0DNP9ipBw"
+          },
+          {
+            "id": "_1Tgde2f4Xp-3iQvO4xmU",
+            "kind": "outdoor_dining",
+            "label": "",
+            "x": 12.5,
+            "y": 3,
+            "widthM": 1.6,
+            "depthM": 0.9,
+            "heightM": 0.75,
+            "rotationDeg": 0,
+            "roomRegionId": "EaBZVo0A-7jL0DNP9ipBw"
+          },
+          {
+            "id": "4PMWcTRY-SR6I5XVXCvkF",
+            "kind": "sun_lounger",
+            "label": "",
+            "x": 13.4,
+            "y": 1.2,
+            "widthM": 1.9,
+            "depthM": 0.7,
+            "heightM": 0.4,
+            "rotationDeg": 90,
+            "roomRegionId": "EaBZVo0A-7jL0DNP9ipBw"
+          },
+          {
+            "id": "gOYL8jwAxJS1Xj6qbuOIw",
+            "kind": "bbq",
+            "label": "",
+            "x": 10.6,
+            "y": 3.5,
+            "widthM": 0.6,
+            "depthM": 0.5,
+            "heightM": 1,
+            "rotationDeg": 0,
+            "roomRegionId": "EaBZVo0A-7jL0DNP9ipBw"
+          },
+          {
+            "id": "114MIjeYt33qgSHxZPK-c",
+            "kind": "planter",
+            "label": "",
+            "x": 13.6,
+            "y": 3.5,
+            "widthM": 0.5,
+            "depthM": 0.5,
+            "heightM": 0.8,
+            "rotationDeg": 0,
+            "roomRegionId": "EaBZVo0A-7jL0DNP9ipBw"
+          }
+        ]
+      },
+      "wallSheets": [
+        {
+          "id": "DxTP76Q43J8TJ2nAYB_wS",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_1_living-room",
+          "lengthM": 6,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "uqt0O33qzb-p7mni6GW5S",
+              "kind": "window",
+              "xM": 3,
+              "zM": 1.5,
+              "widthM": 2.4,
+              "heightM": 1.4,
+              "label": "Picture window",
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "n-living",
+          "wallFace": "a",
+          "roomRegionId": "43-WiFwXdYq9ZnIdTMHmE",
+          "openingsGroupId": "vpC-kuBi3B37kjA3GApPL",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "0Ly2YylncEaIM1-wq4qNO",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_3_kitchen",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "i6Fz33Jd71h_d7sW3P3vo",
+              "kind": "window",
+              "xM": 2,
+              "zM": 1.6,
+              "widthM": 1.6,
+              "heightM": 1.2,
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "n-kitchen",
+          "wallFace": "a",
+          "roomRegionId": "O-LLjDlpUZ1R9I2_VPAEB",
+          "openingsGroupId": "_bQa9MJG4HxkSYDRN4GH5",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "r9VshhnC69bYsAA2K7FBz",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_6_terrace",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [],
+          "wallSegmentId": "n-terrace",
+          "wallFace": "a",
+          "roomRegionId": "EaBZVo0A-7jL0DNP9ipBw",
+          "openingsGroupId": "ld212MKHZzYrQef2hNH_7",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "t4zd0mnUzlryZLMkCRoNt",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_8_bedroom",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "SAIULNbrCG1vvA-XI_fBn",
+              "kind": "door",
+              "xM": 3,
+              "zM": 1.05,
+              "widthM": 0.9,
+              "heightM": 2.1,
+              "planAlongSeg01": 0.75
+            }
+          ],
+          "wallSegmentId": "m-bed",
+          "wallFace": "a",
+          "roomRegionId": "N36eBX2a8e-mB2GkPM5T4",
+          "openingsGroupId": "wb0-iskK8hx_kDEr0wxIV",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "FksT4729TG_8AxPEmuk8V",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_8_living-room",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "SAIULNbrCG1vvA-XI_fBn",
+              "kind": "door",
+              "xM": 3,
+              "zM": 1.05,
+              "widthM": 0.9,
+              "heightM": 2.1,
+              "planAlongSeg01": 0.75
+            }
+          ],
+          "wallSegmentId": "m-bed",
+          "wallFace": "b",
+          "roomRegionId": "43-WiFwXdYq9ZnIdTMHmE",
+          "openingsGroupId": "wb0-iskK8hx_kDEr0wxIV",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "EFCMqYXdnhWF313vtlIUW",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_10_bathroom",
+          "lengthM": 2,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "4Cyq5p40rxAeuLN17_UiD",
+              "kind": "door",
+              "xM": 1,
+              "zM": 1.05,
+              "widthM": 0.8,
+              "heightM": 2.1,
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "m-bath",
+          "wallFace": "a",
+          "roomRegionId": "kX9mDcEkpqUoJnrVUHTSC",
+          "openingsGroupId": "fcmjN_NeZimFLEiKmEsZy",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "f8iwdU1C4XU9YBspWgasH",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_10_living-room",
+          "lengthM": 2,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "4Cyq5p40rxAeuLN17_UiD",
+              "kind": "door",
+              "xM": 1,
+              "zM": 1.05,
+              "widthM": 0.8,
+              "heightM": 2.1,
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "m-bath",
+          "wallFace": "b",
+          "roomRegionId": "43-WiFwXdYq9ZnIdTMHmE",
+          "openingsGroupId": "fcmjN_NeZimFLEiKmEsZy",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "9g-wvoE4IuaJTKboL742s",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_12_hall",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "csQNK2OEQ6WfgWHg__EmA",
+              "kind": "door",
+              "xM": 2,
+              "zM": 1.05,
+              "widthM": 0.9,
+              "heightM": 2.1,
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "m-hall",
+          "wallFace": "a",
+          "roomRegionId": "z-Wb3NteAzvcJAqhhUxhi",
+          "openingsGroupId": "Y6bqtyje3yaI-Hy4t_5Jx",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "t2X3JiGLo5vSoXRHLw-_4",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_12_kitchen",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "csQNK2OEQ6WfgWHg__EmA",
+              "kind": "door",
+              "xM": 2,
+              "zM": 1.05,
+              "widthM": 0.9,
+              "heightM": 2.1,
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "m-hall",
+          "wallFace": "b",
+          "roomRegionId": "O-LLjDlpUZ1R9I2_VPAEB",
+          "openingsGroupId": "Y6bqtyje3yaI-Hy4t_5Jx",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "uGlPQCaPZXeXOhvc1UQcS",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_15_terrace",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [],
+          "wallSegmentId": "s-terrace",
+          "wallFace": "b",
+          "roomRegionId": "EaBZVo0A-7jL0DNP9ipBw",
+          "openingsGroupId": "dJiRfLesjyvF75H6LyyOa",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "02FlOALSasUZ6HOLukRpz",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_16_bedroom",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "gT80qzT0TB4djbM9xipZ5",
+              "kind": "window",
+              "xM": 2,
+              "zM": 1.55,
+              "widthM": 1.6,
+              "heightM": 1.3,
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "s-bed",
+          "wallFace": "b",
+          "roomRegionId": "N36eBX2a8e-mB2GkPM5T4",
+          "openingsGroupId": "uk8-CgX7dzUHNwVQJ1dZF",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "hutVhGblzE2qdn_-HFN0f",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_17_bathroom",
+          "lengthM": 2,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "2yt-a9as1Wobd_D5gl0Um",
+              "kind": "window",
+              "xM": 1,
+              "zM": 1.9,
+              "widthM": 0.6,
+              "heightM": 0.6,
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "s-bath",
+          "wallFace": "b",
+          "roomRegionId": "kX9mDcEkpqUoJnrVUHTSC",
+          "openingsGroupId": "9q8-wCB_12KaNtHH222JM",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "Ev5LC1U9AfXtg-opU0g2J",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_18_hall",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "trOJxOQWgiHyWW3YnuWfU",
+              "kind": "door",
+              "xM": 2,
+              "zM": 1.05,
+              "widthM": 1,
+              "heightM": 2.1,
+              "label": "Entrance",
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "s-hall",
+          "wallFace": "b",
+          "roomRegionId": "z-Wb3NteAzvcJAqhhUxhi",
+          "openingsGroupId": "QqLEFuwzfwhCXw00sKwu_",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "LMdo_KlC1YmvSJ_YTeTXV",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_2_living-room",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "ufS4WcFPQRcR612X-VpWK",
+              "kind": "window",
+              "xM": 2,
+              "zM": 1.55,
+              "widthM": 1.2,
+              "heightM": 1.3,
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "w-living",
+          "wallFace": "b",
+          "roomRegionId": "43-WiFwXdYq9ZnIdTMHmE",
+          "openingsGroupId": "RiUTGB_QBNaZUoOq5sV5M",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "fOuzyq647KETRM9mpTmai",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_9_bedroom",
+          "lengthM": 3,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [],
+          "wallSegmentId": "w-bed",
+          "wallFace": "b",
+          "roomRegionId": "N36eBX2a8e-mB2GkPM5T4",
+          "openingsGroupId": "vIopClQsrA1ihR1F5hd0X",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "L5xzx_EJcmsvgTHokSD0H",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_11_bedroom",
+          "lengthM": 3,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [],
+          "wallSegmentId": "p-bath",
+          "wallFace": "a",
+          "roomRegionId": "N36eBX2a8e-mB2GkPM5T4",
+          "openingsGroupId": "UsU2YZDCQHSNBibfuS_rF",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "YbCvA71gG8jYB-YMEUVdw",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_11_bathroom",
+          "lengthM": 3,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [],
+          "wallSegmentId": "p-bath",
+          "wallFace": "b",
+          "roomRegionId": "kX9mDcEkpqUoJnrVUHTSC",
+          "openingsGroupId": "UsU2YZDCQHSNBibfuS_rF",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "5G2-5VNzLqAqn7PU0dT_5",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_4_living-room",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "9PC0qel-It36xrSFbq5r_",
+              "kind": "door",
+              "xM": 2.4,
+              "zM": 1.1,
+              "widthM": 1.4,
+              "heightM": 2.2,
+              "planAlongSeg01": 0.6
+            }
+          ],
+          "wallSegmentId": "p-kitchen",
+          "wallFace": "a",
+          "roomRegionId": "43-WiFwXdYq9ZnIdTMHmE",
+          "openingsGroupId": "mMuGLq0rSkO6MD7OUvkZA",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "g6e-kAmeilBvHP_bx1OST",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_4_kitchen",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "9PC0qel-It36xrSFbq5r_",
+              "kind": "door",
+              "xM": 2.4,
+              "zM": 1.1,
+              "widthM": 1.4,
+              "heightM": 2.2,
+              "planAlongSeg01": 0.6
+            }
+          ],
+          "wallSegmentId": "p-kitchen",
+          "wallFace": "b",
+          "roomRegionId": "O-LLjDlpUZ1R9I2_VPAEB",
+          "openingsGroupId": "mMuGLq0rSkO6MD7OUvkZA",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "LVpWY1cSm2oa0i3nluR1m",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_13_bathroom",
+          "lengthM": 3,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [],
+          "wallSegmentId": "p-hall",
+          "wallFace": "a",
+          "roomRegionId": "kX9mDcEkpqUoJnrVUHTSC",
+          "openingsGroupId": "hBX_u9qaN92JQHDVDLjDO",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "Kwffz06tZDozmN2Hiurum",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_13_hall",
+          "lengthM": 3,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [],
+          "wallSegmentId": "p-hall",
+          "wallFace": "b",
+          "roomRegionId": "z-Wb3NteAzvcJAqhhUxhi",
+          "openingsGroupId": "hBX_u9qaN92JQHDVDLjDO",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "7bDW7uAgwKC-llyYOIExE",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_5_kitchen",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "KXJc-cvjhzC2cQTX4Ro-J",
+              "kind": "door",
+              "xM": 2,
+              "zM": 1.1,
+              "widthM": 1.8,
+              "heightM": 2.2,
+              "label": "Sliding door",
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "e-kitchen",
+          "wallFace": "a",
+          "roomRegionId": "O-LLjDlpUZ1R9I2_VPAEB",
+          "openingsGroupId": "JK6cKw0VFuDBJKCB2cHfx",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "BXpUfbkXnFS1GJR1o-LQt",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_5_terrace",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [
+            {
+              "id": "KXJc-cvjhzC2cQTX4Ro-J",
+              "kind": "door",
+              "xM": 2,
+              "zM": 1.1,
+              "widthM": 1.8,
+              "heightM": 2.2,
+              "label": "Sliding door",
+              "planAlongSeg01": 0.5
+            }
+          ],
+          "wallSegmentId": "e-kitchen",
+          "wallFace": "b",
+          "roomRegionId": "EaBZVo0A-7jL0DNP9ipBw",
+          "openingsGroupId": "JK6cKw0VFuDBJKCB2cHfx",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "3t9sZ4BwS0rMB0ONa5ZPw",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_14_hall",
+          "lengthM": 3,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [],
+          "wallSegmentId": "e-hall",
+          "wallFace": "a",
+          "roomRegionId": "z-Wb3NteAzvcJAqhhUxhi",
+          "openingsGroupId": "RKNfgeazpm6WZUcSXjRlA",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        },
+        {
+          "id": "O8JIprycm2M8Fr30Jx5Xb",
+          "floorLevelId": "cmHWCEMgVL7mKJJ9tLdIH",
+          "label": "L0_7_terrace",
+          "lengthM": 4,
+          "heightM": 2.7,
+          "devices": [],
+          "openings": [],
+          "wallSegmentId": "e-terrace",
+          "wallFace": "a",
+          "roomRegionId": "EaBZVo0A-7jL0DNP9ipBw",
+          "openingsGroupId": "ukWfhjqfCb8eRtO7EFZcC",
+          "planSpanAlongSegment01": {
+            "t0": 0,
+            "t1": 1
+          }
+        }
+      ]
+    }
+  ],
+  "knxLines": [
+    {
+      "id": "knx-line-ground",
+      "label": "Ground floor apartment",
+      "sortOrder": 0
+    },
+    {
+      "id": "knx-line-first",
+      "label": "First floor apartment",
+      "sortOrder": 1
+    },
+    {
+      "id": "knx-line-common",
+      "label": "Common areas",
+      "sortOrder": 2
+    }
+  ],
+  "panel": {
+    "rows": 3,
+    "widthTe": 18,
+    "slots": [
+      {
+        "id": "eLOjVv1mDMq9ixrosDAk3",
+        "row": 0,
+        "col": 0,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C1",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "Ljw-P1f-rrbzDRPg47xy1",
+        "row": 0,
+        "col": 1,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C2",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "JqkxRTOxv-aUWpvv2RXfK",
+        "row": 0,
+        "col": 2,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C3",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "PQATNagqQfbrceYfjA5eZ",
+        "row": 0,
+        "col": 3,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C4",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "F0KCf24uRf9qPEm5X-nuX",
+        "row": 0,
+        "col": 4,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C5",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "8XfMfWjOjfCyGWfUsg80O",
+        "row": 0,
+        "col": 5,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C6",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "6RBx49CFKXrcgswK8tcxm",
+        "row": 0,
+        "col": 6,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C7",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "Sgk4F7MS20vFne-rbawTH",
+        "row": 0,
+        "col": 7,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C8",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "VhpmHxORI0hSRgsmTVEyT",
+        "row": 0,
+        "col": 8,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C9",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "ZJdi8fkEslkaYQdAGuvwA",
+        "row": 0,
+        "col": 9,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C10",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "3qRHoRP7GxpGpg43TSM2E",
+        "row": 0,
+        "col": 10,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C11",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "Z0NHPw_s6aVRBwGbZMPTL",
+        "row": 0,
+        "col": 11,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C12",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "GlPI31MgWTpO5XQh3W5YZ",
+        "row": 0,
+        "col": 12,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C13",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "fgk-syKaTUChs37b-jwf2",
+        "row": 0,
+        "col": 13,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C14",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "_1n4KdxB2bEvwbySyx9hF",
+        "row": 0,
+        "col": 14,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C15",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "5po9o0V5tUmD-kGCRiYyl",
+        "row": 0,
+        "col": 15,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C16",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "aA04gM188sPg1mz5D-5Pk",
+        "row": 0,
+        "col": 16,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C17",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "K57Ceg9Uzxjp40FRPupvC",
+        "row": 0,
+        "col": 17,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R1C18",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "66AnmOTodrsoc17h5AcQQ",
+        "row": 1,
+        "col": 0,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C1",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "ZRXLumhndEIi6rS8vnMOO",
+        "row": 1,
+        "col": 1,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C2",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "Jrs20ptYTJm4DD-fEu7en",
+        "row": 1,
+        "col": 2,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C3",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "60yeELxEWEmfJeC4rTNGO",
+        "row": 1,
+        "col": 3,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C4",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "7CwUynVlHzEF5VdBgK-C_",
+        "row": 1,
+        "col": 4,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C5",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "EJYtOxuwo-nrJ6cG7b4iX",
+        "row": 1,
+        "col": 5,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C6",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "fhnLPTTFTKsh1J3Vv0j2t",
+        "row": 1,
+        "col": 6,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C7",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "J9yEpTVX1ocUC2Bhr3Jvw",
+        "row": 1,
+        "col": 7,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C8",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "yoLoHp3zM2GK3LmW4INOr",
+        "row": 1,
+        "col": 8,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C9",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "PbYfmcehbjAGCy5YClo2G",
+        "row": 1,
+        "col": 9,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C10",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "74AWQvI_6CgZydFyS7YyE",
+        "row": 1,
+        "col": 10,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C11",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "ll9fEyyWl5rmB4EdNZ2f2",
+        "row": 1,
+        "col": 11,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C12",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "QQDZ9ibJw7IQ_ox0_kQhl",
+        "row": 1,
+        "col": 12,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C13",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "TGJP5fmdgIz70w1leFSHU",
+        "row": 1,
+        "col": 13,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C14",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "yC57C8CCJKOZgTRdwMoTU",
+        "row": 1,
+        "col": 14,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C15",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "OJtZRM2IB5btqpMxJUkY5",
+        "row": 1,
+        "col": 15,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C16",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "-fic86K_eA4gvQf_aKmD4",
+        "row": 1,
+        "col": 16,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C17",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "ZrSE8oritwPnU27BygT6M",
+        "row": 1,
+        "col": 17,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R2C18",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "mPJdkLDEedHVqdhNZE7NC",
+        "row": 2,
+        "col": 0,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C1",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "EzzNe297bF2133y58ln0v",
+        "row": 2,
+        "col": 1,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C2",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "VRDPD0hpzsNaBfIRoQaRG",
+        "row": 2,
+        "col": 2,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C3",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "JUbpT_-wDHW5ugezV5klK",
+        "row": 2,
+        "col": 3,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C4",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "RHR2UaHl8qejtSvQfe07k",
+        "row": 2,
+        "col": 4,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C5",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "CTwZRjgKZikYCiq0KbWXS",
+        "row": 2,
+        "col": 5,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C6",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "XfiLDpEGFoSNgzVx51oTS",
+        "row": 2,
+        "col": 6,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C7",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "q_a9k2dQ0IAqRBRKOSUVP",
+        "row": 2,
+        "col": 7,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C8",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "HLwTQYfCR1r36YFtdNC5J",
+        "row": 2,
+        "col": 8,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C9",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "VXlooBZZUAE6V0Ap1FKre",
+        "row": 2,
+        "col": 9,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C10",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "0WK2Q1datPUOeyWVda_VO",
+        "row": 2,
+        "col": 10,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C11",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "wl0pt6Rd1xp8VeOLyfI0C",
+        "row": 2,
+        "col": 11,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C12",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "_M0GIy9b2VngbPvJERvpp",
+        "row": 2,
+        "col": 12,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C13",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "1469CvNuuY-78QcknIW1q",
+        "row": 2,
+        "col": 13,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C14",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "idT6qxxgadddpBGlFlAlU",
+        "row": 2,
+        "col": 14,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C15",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "F_zXW_31pwgEmhQv2ht5v",
+        "row": 2,
+        "col": 15,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C16",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "XbyF1YsFd32mqiDnHP8o2",
+        "row": 2,
+        "col": 16,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C17",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      },
+      {
+        "id": "Mwnl5x2mPoMbGc_DBEQCc",
+        "row": 2,
+        "col": 17,
+        "moduleType": "blank",
+        "label": "",
+        "circuitRef": "",
+        "spanWidthTe": 1,
+        "productName": "BLANK R3C18",
+        "unitPrice": 0,
+        "billCategory": "standard"
+      }
+    ],
+    "modulePalette": []
+  },
+  "rack": {
+    "totalRU": 12,
+    "widthLabel": "19\" / 600mm",
+    "enclosureProductName": "Rack enclosure",
+    "enclosureUnitPrice": 0,
+    "enclosureBillCategory": "standard",
+    "gear": [
+      {
+        "id": "_qJgbJCdDevlNl3YTOILW",
+        "productName": "Patch panel 24p",
+        "unitPrice": 0,
+        "billCategory": "standard",
+        "startRU": 1,
+        "heightRU": 1,
+        "notes": "",
+        "rj45PortCount": 0,
+        "sfpPortCount": 0
+      },
+      {
+        "id": "tVzCYXn_nJzTvHml1-Kwm",
+        "productName": "PoE switch",
+        "unitPrice": 0,
+        "billCategory": "standard",
+        "startRU": 2,
+        "heightRU": 1,
+        "notes": "",
+        "rj45PortCount": 0,
+        "sfpPortCount": 0
+      }
+    ],
+    "patchPanelLinks": [],
+    "portLinks": []
+  },
+  "editorSettings": {
+    "snapGridM": 0.1,
+    "wallOrtho": true,
+    "defaultWallThicknessM": 0.1,
+    "defaultWallMaterial": "painted"
+  },
+  "deviceCatalog": [
+    {
+      "id": "b4NT0KU9Z9-iq9eaNfQBU",
+      "displayName": "light",
+      "type": "light",
+      "mounting": "both",
+      "productName": "Generic light",
+      "unitPrice": 0,
+      "billCategory": "standard"
+    },
+    {
+      "id": "ZI2XhN49sol2uepr21RMU",
+      "displayName": "switch",
+      "type": "switch",
+      "mounting": "both",
+      "productName": "Generic switch",
+      "unitPrice": 0,
+      "billCategory": "standard"
+    },
+    {
+      "id": "YMoewfrHzsjI82xzDOr0y",
+      "displayName": "outlet",
+      "type": "outlet",
+      "mounting": "both",
+      "productName": "Generic outlet",
+      "unitPrice": 0,
+      "billCategory": "standard"
+    },
+    {
+      "id": "-LUKjj8H4zkVlIjQBDN0X",
+      "displayName": "motion sensor",
+      "type": "motion_sensor",
+      "mounting": "both",
+      "productName": "Generic motion sensor",
+      "unitPrice": 0,
+      "billCategory": "standard"
+    },
+    {
+      "id": "EPeHo1GBqn-ZqVnfpyXgj",
+      "displayName": "camera",
+      "type": "camera",
+      "mounting": "both",
+      "productName": "Generic camera",
+      "unitPrice": 0,
+      "billCategory": "standard"
+    }
+  ]
+}

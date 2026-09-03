@@ -29,8 +29,6 @@ export type FurnitureSpec = {
   glyph: FurnitureGlyph
   fill: string
   stroke: string
-  /** Free-text massing hint used verbatim by the 3D render prompt. */
-  renderHint: string
 }
 
 /**
@@ -48,7 +46,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'l_shape',
     fill: 'rgba(129, 140, 248, 0.30)',
     stroke: '#a5b4fc',
-    renderHint: 'L-shaped sectional sofa with a chaise return, fabric upholstery',
   },
   {
     kind: 'sofa',
@@ -60,7 +57,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'seat',
     fill: 'rgba(129, 140, 248, 0.30)',
     stroke: '#a5b4fc',
-    renderHint: 'three-seat sofa, fabric upholstery',
   },
   {
     kind: 'armchair',
@@ -72,7 +68,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'seat',
     fill: 'rgba(129, 140, 248, 0.30)',
     stroke: '#a5b4fc',
-    renderHint: 'lounge armchair',
   },
   {
     kind: 'coffee_table',
@@ -84,7 +79,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(148, 163, 184, 0.28)',
     stroke: '#cbd5e1',
-    renderHint: 'low coffee table',
   },
   {
     kind: 'tv_table',
@@ -96,7 +90,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(148, 163, 184, 0.28)',
     stroke: '#cbd5e1',
-    renderHint: 'low media console with a wall-mounted flat screen above it',
   },
   {
     kind: 'dining_table',
@@ -108,7 +101,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(148, 163, 184, 0.28)',
     stroke: '#cbd5e1',
-    renderHint: 'dining table with chairs around it',
   },
   {
     kind: 'chair',
@@ -120,7 +112,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(148, 163, 184, 0.28)',
     stroke: '#cbd5e1',
-    renderHint: 'dining chair',
   },
   {
     kind: 'bookshelf',
@@ -132,7 +123,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(148, 163, 184, 0.28)',
     stroke: '#cbd5e1',
-    renderHint: 'tall open bookshelf against the wall',
   },
   {
     kind: 'bed_double',
@@ -144,7 +134,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'bed',
     fill: 'rgba(244, 114, 182, 0.24)',
     stroke: '#f9a8d4',
-    renderHint: 'double bed with headboard, made with linens and pillows',
   },
   {
     kind: 'bed_single',
@@ -156,7 +145,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'bed',
     fill: 'rgba(244, 114, 182, 0.24)',
     stroke: '#f9a8d4',
-    renderHint: 'single bed with headboard',
   },
   {
     kind: 'nightstand',
@@ -168,7 +156,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(244, 114, 182, 0.24)',
     stroke: '#f9a8d4',
-    renderHint: 'bedside nightstand with a lamp',
   },
   {
     kind: 'wardrobe',
@@ -180,7 +167,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(244, 114, 182, 0.24)',
     stroke: '#f9a8d4',
-    renderHint: 'full-height fitted wardrobe with sliding doors',
   },
   {
     kind: 'desk',
@@ -192,7 +178,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(244, 114, 182, 0.24)',
     stroke: '#f9a8d4',
-    renderHint: 'work desk with a chair',
   },
   {
     kind: 'kitchen_counter',
@@ -204,7 +189,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(251, 191, 36, 0.24)',
     stroke: '#fcd34d',
-    renderHint: 'kitchen base-unit run with worktop, sink and hob, wall units above',
   },
   {
     kind: 'kitchen_island',
@@ -216,7 +200,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(251, 191, 36, 0.24)',
     stroke: '#fcd34d',
-    renderHint: 'free-standing kitchen island with a stone worktop',
   },
   {
     kind: 'fridge',
@@ -228,7 +211,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(251, 191, 36, 0.24)',
     stroke: '#fcd34d',
-    renderHint: 'tall fridge-freezer',
   },
   {
     kind: 'shower_glass',
@@ -240,8 +222,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'glass',
     fill: 'rgba(56, 189, 248, 0.18)',
     stroke: '#7dd3fc',
-    renderHint:
-      'walk-in shower enclosed by frameless clear glass panels, tiled tray and rain head',
   },
   {
     kind: 'toilet_inwall',
@@ -253,8 +233,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'bowl',
     fill: 'rgba(56, 189, 248, 0.18)',
     stroke: '#7dd3fc',
-    renderHint:
-      'wall-hung toilet on a concealed in-wall cistern with a flush plate, floor clear underneath',
   },
   {
     kind: 'sink_combo',
@@ -266,7 +244,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'bowl',
     fill: 'rgba(56, 189, 248, 0.18)',
     stroke: '#7dd3fc',
-    renderHint: 'washbasin on a vanity unit with a mirror above',
   },
   {
     kind: 'bathtub',
@@ -278,7 +255,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'round',
     fill: 'rgba(56, 189, 248, 0.18)',
     stroke: '#7dd3fc',
-    renderHint: 'built-in bathtub',
   },
   {
     kind: 'washing_machine',
@@ -290,7 +266,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(56, 189, 248, 0.18)',
     stroke: '#7dd3fc',
-    renderHint: 'front-loading washing machine',
   },
   {
     kind: 'outdoor_sofa_l',
@@ -302,7 +277,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'l_shape',
     fill: 'rgba(52, 211, 153, 0.24)',
     stroke: '#6ee7b7',
-    renderHint: 'outdoor L-shaped lounge set with weatherproof cushions',
   },
   {
     kind: 'outdoor_dining',
@@ -314,7 +288,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(52, 211, 153, 0.24)',
     stroke: '#6ee7b7',
-    renderHint: 'outdoor dining table with chairs',
   },
   {
     kind: 'sun_lounger',
@@ -326,7 +299,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'round',
     fill: 'rgba(52, 211, 153, 0.24)',
     stroke: '#6ee7b7',
-    renderHint: 'reclining sun lounger',
   },
   {
     kind: 'bbq',
@@ -338,7 +310,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'plain',
     fill: 'rgba(52, 211, 153, 0.24)',
     stroke: '#6ee7b7',
-    renderHint: 'built-in barbecue grill counter',
   },
   {
     kind: 'planter',
@@ -350,7 +321,6 @@ export const FURNITURE_SPECS: FurnitureSpec[] = [
     glyph: 'round',
     fill: 'rgba(52, 211, 153, 0.24)',
     stroke: '#6ee7b7',
-    renderHint: 'large planter with a shrub',
   },
 ]
 
